@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import { MockHistoricalWildfireRepository } from './data'
+import { MockHistoricalWildfireRepository, MockPredictionRepository, TEST_AOI } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
@@ -8,6 +8,11 @@ import type { AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls } from './features/filters/DateRangeControls'
 import { AddFireFieldNote } from './features/fire-annotations/AddFireFieldNote'
 import { MockFireAnnotationRepository } from './features/fire-annotations/MockFireAnnotationRepository'
+import { PredictionTrendChart } from './features/prediction/PredictionTrendChart'
+import { PredictionRiskDonut } from './features/prediction/PredictionRiskDonut'
+import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
+import { PredictionInsightsCard } from './features/prediction/PredictionInsightsCard'
+import { PredictionAboutCard } from './features/prediction/PredictionAboutCard'
 import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
@@ -15,6 +20,7 @@ import type { NewFireFieldNote } from './types/annotation'
 
 const repository = new MockHistoricalWildfireRepository()
 const fireAnnotationRepository = new MockFireAnnotationRepository()
+const predictionRepository = new MockPredictionRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
 const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
 
@@ -220,22 +226,41 @@ function FieldNoteDialog({ onClose, onSubmit, initialLocation, initialEventDate 
 }
 
 function PredictionDashboardPlaceholder() {
+  const [prediction, setPrediction] = useState<Awaited<ReturnType<typeof predictionRepository.getPredictionDashboard>> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    predictionRepository.getPredictionDashboard({ aoi: TEST_AOI, sensorMode: 'harmonized', forecastMonths: 12 })
+      .then((data) => { if (!cancelled) setPrediction(data) })
+      .catch(() => { if (!cancelled) setError('Prediction data could not be loaded.') })
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-        <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Historical &amp; Future Fire Activity</h2>
-          <p className="mt-3 text-sm text-slate-500">Trend chart placeholder</p>
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
+        <div>
+          {prediction && <PredictionTrendChart points={prediction.points} unit={prediction.unit} />}
+          {!prediction && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
+          {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
         </div>
-        <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Future High-Risk Months</h2>
-          <p className="mt-3 text-sm text-slate-500">Risk outlook placeholder</p>
+        <div className="min-h-[28rem]">
+          {prediction && <PredictionRiskDonut risks={prediction.risks} highRiskMonth={prediction.highRiskMonth} />}
+          {!prediction && !error && <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500" role="status">Loading risk outlook…</p>}
+          {error && <p className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700" role="alert">{error}</p>}
         </div>
       </section>
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Insight cards placeholder</p></div>
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Model Confidence</h2><p className="mt-3 text-sm text-slate-500">Confidence card placeholder</p></div>
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Limitations card placeholder</p></div>
+      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
+        <div className="grid w-full items-start gap-4 self-start md:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+          {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
+          <div className="self-start">
+            {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Model Confidence</h2><p className="mt-3 text-sm text-slate-500">Loading confidence data…</p></div>}
+          </div>
+        </div>
+        <div className="self-start">
+          {prediction ? <PredictionAboutCard isMock={prediction.isMock} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Loading forecast information…</p></div>}
+        </div>
       </section>
     </main>
   )

@@ -87,7 +87,7 @@ export function createMockPredictionDashboard(query: PredictionQuery): Predictio
     highRiskMonth: 'August 2027',
     insights: {
       nextThreeMonthsChangePercent: 32,
-      highRiskPeriod: 'August–September',
+      highRiskPeriod: 'August to September',
       longTermTrendPercent: 18,
     },
     modelConfidence: {
