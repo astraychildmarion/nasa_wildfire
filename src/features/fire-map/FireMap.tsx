@@ -2,6 +2,8 @@ import { CircleMarker, MapContainer, Popup, Rectangle, TileLayer, useMapEvents }
 import 'leaflet/dist/leaflet.css'
 import type { AreaOfInterest, HistoricalHotspot } from '../../shared/types'
 import { createAreaOfInterest, type AOIDimensions } from './aoi'
+import { MapInfoPanel } from './MapInfoPanel'
+import type { MapInfoPanelData } from './mapInfoData'
 
 interface MapClickHandlerProps {
   dimensions: AOIDimensions
@@ -27,6 +29,7 @@ export interface FireMapProps {
   error: string | null
   aoiDimensions: AOIDimensions
   emptyMessage?: string
+  infoPanelData?: MapInfoPanelData
   onAOIChange: (aoi: AreaOfInterest) => void
 }
 
@@ -37,6 +40,7 @@ export function FireMap({
   error,
   aoiDimensions,
   emptyMessage,
+  infoPanelData,
   onAOIChange,
 }: FireMapProps) {
   const boundary: [[number, number], [number, number]] | null = aoi
@@ -100,9 +104,11 @@ export function FireMap({
         ))}
       </MapContainer>
 
+      <MapInfoPanel data={infoPanelData} />
+
       {!aoi && (
         <div className="pointer-events-none absolute inset-x-4 bottom-5 z-[500] flex justify-center">
-          <p className="rounded-full bg-white/95 px-4 py-2 text-center text-sm font-medium text-slate-700 shadow-lg ring-1 ring-slate-200 backdrop-blur">
+          <p className="rounded-full bg-white/70 px-4 py-2 text-center text-sm font-medium text-slate-700 shadow-lg ring-1 ring-white/70 backdrop-blur-sm">
             Click anywhere on the map to explore historical fire activity.
           </p>
         </div>
