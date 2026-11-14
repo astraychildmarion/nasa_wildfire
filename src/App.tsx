@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import { MockHistoricalWildfireRepository } from './data'
+import { MockHistoricalWildfireRepository, MockPredictionRepository, TEST_AOI } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
@@ -9,8 +9,10 @@ import { DateRangeControls } from './features/filters/DateRangeControls'
 import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
+import { PredictionTrendChart } from './features/prediction/PredictionTrendChart'
 
 const repository = new MockHistoricalWildfireRepository()
+const predictionRepository = new MockPredictionRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
 const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
 
@@ -158,12 +160,24 @@ function HistoricalExplorerPage() {
 }
 
 function PredictionDashboardPlaceholder() {
+  const [prediction, setPrediction] = useState<Awaited<ReturnType<typeof predictionRepository.getPredictionDashboard>> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    predictionRepository.getPredictionDashboard({ aoi: TEST_AOI, sensorMode: 'harmonized', forecastMonths: 12 })
+      .then((data) => { if (!cancelled) setPrediction(data) })
+      .catch(() => { if (!cancelled) setError('Prediction data could not be loaded.') })
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
         <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Historical &amp; Future Fire Activity</h2>
-          <p className="mt-3 text-sm text-slate-500">Trend chart placeholder</p>
+          {prediction && <PredictionTrendChart points={prediction.points} unit={prediction.unit} />}
+          {!prediction && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
+          {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
         </div>
         <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Future High-Risk Months</h2>
