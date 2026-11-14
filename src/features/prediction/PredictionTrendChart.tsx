@@ -11,12 +11,10 @@ export function PredictionTrendChart({ points, unit }: PredictionTrendChartProps
   const chartWidth = useMemo(() => getChartWidth(points.length), [points.length])
   const geometry = useMemo(() => getTrendChartGeometry(points, chartWidth), [chartWidth, points])
   const scrollRef = useRef<HTMLDivElement>(null)
-  const historicalCount = points.filter((point) => point.phase === 'historical').length
   const yearLabels = points.flatMap((point, index) => point.month.endsWith('-01') ? [{ index, label: point.month.slice(0, 4) }] : [])
   useEffect(() => {
-    const firstRecentIndex = Math.max(0, historicalCount - 60)
-    if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, getChartX(firstRecentIndex, points.length, chartWidth) - 64)
-  }, [chartWidth, historicalCount, points.length])
+    if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
+  }, [chartWidth, points.length])
 
   const yTicks = [geometry.minValue, (geometry.minValue + geometry.maxValue) / 2, geometry.maxValue]
   const forecastLine = geometry.forecast.length > 0 && geometry.historical.length > 0
@@ -28,7 +26,6 @@ export function PredictionTrendChart({ points, unit }: PredictionTrendChartProps
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Historical &amp; Future Fire Activity</h2>
-          <p className="mt-1 text-sm text-slate-500">Monthly fire hotspots ({unit})</p>
         </div>
         <div className="flex flex-wrap gap-3 text-xs text-slate-600" aria-label="Trend chart legend">
           <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-5 rounded-full bg-blue-700" />Historical observed</span>
@@ -37,7 +34,6 @@ export function PredictionTrendChart({ points, unit }: PredictionTrendChartProps
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-slate-500">Showing the latest 5 years first. Scroll horizontally left to view earlier historical months.</p>
       <div ref={scrollRef} className="mt-3 overflow-x-auto rounded-lg border border-slate-100" tabIndex={0} aria-label="Scrollable monthly trend chart">
         <svg className="h-auto" style={{ width: chartWidth, maxWidth: 'none' }} viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} role="img" aria-label="Historical observed fire activity and 12-month forecast with confidence intervals">
           <title>Historical observed fire activity and future forecast</title>

@@ -10,6 +10,7 @@ import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prep
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
 import { PredictionTrendChart } from './features/prediction/PredictionTrendChart'
+import { PredictionRiskDonut } from './features/prediction/PredictionRiskDonut'
 
 const repository = new MockHistoricalWildfireRepository()
 const predictionRepository = new MockPredictionRepository()
@@ -174,14 +175,15 @@ function PredictionDashboardPlaceholder() {
   return (
     <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
       <section className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
-        <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
+        <div>
           {prediction && <PredictionTrendChart points={prediction.points} unit={prediction.unit} />}
           {!prediction && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
           {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
         </div>
-        <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Future High-Risk Months</h2>
-          <p className="mt-3 text-sm text-slate-500">Risk outlook placeholder</p>
+        <div className="min-h-[28rem]">
+          {prediction && <PredictionRiskDonut risks={prediction.risks} highRiskMonth={prediction.highRiskMonth} />}
+          {!prediction && !error && <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500" role="status">Loading risk outlook…</p>}
+          {error && <p className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700" role="alert">{error}</p>}
         </div>
       </section>
       <section className="grid gap-4 md:grid-cols-3">
