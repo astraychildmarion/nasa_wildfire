@@ -4,7 +4,7 @@ import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { FireMap } from './features/fire-map/FireMap'
 import type { AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls } from './features/filters/DateRangeControls'
-import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, toMonthKey } from './shared/lib'
+import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
 
@@ -32,7 +32,7 @@ function App() {
       .then((records) => {
         if (cancelled) return
         setMonthlyActivity(records)
-        setDateRange(getLatestCompleteMonthRange(records))
+        setDateRange(getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null)))
       })
       .catch(() => {
         if (!cancelled) setActivityError('Historical monthly activity could not be loaded.')
@@ -42,7 +42,7 @@ function App() {
       })
 
     return () => { cancelled = true }
-  }, [selectedAOI])
+  }, [selectedAOI, sensorMode])
 
   useEffect(() => {
     if (!selectedAOI || !selectedMonth) return
@@ -69,10 +69,21 @@ function App() {
     [monthlyActivity],
   )
 
-  const visibleActivity = useMemo(() => {
+  const latestRange = useMemo(
+    () => getLatestCompleteMonthRange(monthlyActivity.filter((record) => record[sensorMode] !== null)),
+    [monthlyActivity, sensorMode],
+  )
+
+  const calendarCells = useMemo(() => {
+    const years = monthlyActivity.map((record) => record.year)
+    const baseline = {
+      startYear: years.length > 0 ? Math.min(...years) : 0,
+      endYear: years.length > 0 ? Math.max(...years) : 0,
+    }
+    const prepared = prepareCalendarCells(monthlyActivity, sensorMode, calendarMode, baseline)
     if (!dateRange) return []
-    return monthlyActivity.filter((record) => isMonthInRange(toMonthKey(record.year, record.month), dateRange))
-  }, [dateRange, monthlyActivity])
+    return prepared.filter((cell) => isMonthInRange(toMonthKey(cell.year, cell.month), dateRange))
+  }, [calendarMode, dateRange, monthlyActivity, sensorMode])
 
   function handleAOIChange(aoi: AreaOfInterest) {
     setSelectedAOI(aoi)
@@ -135,21 +146,18 @@ function App() {
               key={dateRange ? `${dateRange.start}:${dateRange.end}` : 'no-range'}
               range={dateRange}
               availableRange={availableRange}
+              latestRange={latestRange}
               disabled={activityLoading}
               onChange={handleDateRangeChange}
             />
           </div>
         </section>
-        <FireCalendar
-          records={visibleActivity}
-          selectedMonth={selectedMonth}
-          sensorMode={sensorMode}
-          calendarMode={calendarMode}
-          loading={activityLoading}
-          error={activityError}
-          hasAOI={selectedAOI !== null}
-          onMonthSelect={handleMonthSelect}
-        />
+        {!selectedAOI && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">Select a location on the map to load historical monthly activity.</section>}
+        {selectedAOI && activityLoading && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm" role="status">Loading historical monthly activity…</section>}
+        {selectedAOI && activityError && <section className="w-full rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700 shadow-sm" role="alert">{activityError}</section>}
+        {selectedAOI && !activityLoading && !activityError && (
+          <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
+        )}
       </main>
     </div>
   )
