@@ -11,6 +11,8 @@ import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
 import { PredictionTrendChart } from './features/prediction/PredictionTrendChart'
 import { PredictionRiskDonut } from './features/prediction/PredictionRiskDonut'
+import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
+import { PredictionInsightsCard } from './features/prediction/PredictionInsightsCard'
 
 const repository = new MockHistoricalWildfireRepository()
 const predictionRepository = new MockPredictionRepository()
@@ -186,9 +188,13 @@ function PredictionDashboardPlaceholder() {
           {error && <p className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700" role="alert">{error}</p>}
         </div>
       </section>
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Insight cards placeholder</p></div>
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Model Confidence</h2><p className="mt-3 text-sm text-slate-500">Confidence card placeholder</p></div>
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
+        <div className="grid w-full gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+          {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
+          <div>
+            {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Model Confidence</h2><p className="mt-3 text-sm text-slate-500">Loading confidence data…</p></div>}
+          </div>
+        </div>
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Limitations card placeholder</p></div>
       </section>
     </main>
