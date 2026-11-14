@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { MockHistoricalWildfireRepository, MockPredictionRepository, TEST_AOI } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
-import type { AOIDimensions } from './features/fire-map/aoi'
-import { DateRangeControls } from './features/filters/DateRangeControls'
+import { createAreaOfInterest, type AOIDimensions } from './features/fire-map/aoi'
+import { DateRangeControls, type MapQueryValues } from './features/filters/DateRangeControls'
 import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
@@ -32,6 +32,7 @@ function HistoricalExplorerPage() {
   const [hotspotLoading, setHotspotLoading] = useState(false)
   const [activityError, setActivityError] = useState<string | null>(null)
   const [hotspotError, setHotspotError] = useState<string | null>(null)
+  const pendingDateRangeRef = useRef<MonthRange | null>(null)
 
   useEffect(() => {
     if (!selectedAOI) return
@@ -41,7 +42,8 @@ function HistoricalExplorerPage() {
       .then((records) => {
         if (cancelled) return
         setMonthlyActivity(records)
-        setDateRange(getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null)))
+        setDateRange(pendingDateRangeRef.current ?? getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null)))
+        pendingDateRangeRef.current = null
       })
       .catch(() => {
         if (!cancelled) setActivityError('Historical monthly activity could not be loaded.')
@@ -78,18 +80,14 @@ function HistoricalExplorerPage() {
     [monthlyActivity],
   )
 
-  const latestRange = useMemo(
-    () => getLatestCompleteMonthRange(monthlyActivity.filter((record) => record[sensorMode] !== null)),
-    [monthlyActivity, sensorMode],
-  )
-
   const calendarCells = useMemo(() => {
     const prepared = prepareCalendarCells(monthlyActivity, sensorMode, calendarMode, HISTORICAL_BASELINE)
     if (!dateRange) return []
     return prepared.filter((cell) => isMonthInRange(toMonthKey(cell.year, cell.month), dateRange))
   }, [calendarMode, dateRange, monthlyActivity, sensorMode])
 
-  function handleAOIChange(aoi: AreaOfInterest) {
+  function handleAOIChange(aoi: AreaOfInterest, preferredRange?: MonthRange) {
+    if (preferredRange) pendingDateRangeRef.current = preferredRange
     setSelectedAOI(aoi)
     setSelectedMonth(null)
     setMonthlyActivity([])
@@ -99,6 +97,17 @@ function HistoricalExplorerPage() {
     setHotspotLoading(false)
     setActivityError(null)
     setHotspotError(null)
+  }
+
+  function handleApplyQuery(values: MapQueryValues) {
+    const requestedRange = { start: values.start, end: values.end }
+    const hasCoordinates = values.latitude.trim() !== '' && values.longitude.trim() !== ''
+    if (hasCoordinates) {
+      handleAOIChange(createAreaOfInterest({ latitude: Number(values.latitude), longitude: Number(values.longitude) }, AOI_DIMENSIONS), requestedRange)
+      return
+    }
+    if (selectedAOI) handleDateRangeChange(requestedRange)
+    else { pendingDateRangeRef.current = requestedRange; setDateRange(requestedRange) }
   }
 
   function handleDateRangeChange(nextRange: MonthRange) {
@@ -139,14 +148,14 @@ function HistoricalExplorerPage() {
             emptyMessage={mapEmptyMessage}
             onAOIChange={handleAOIChange}
           />
-          <div className="absolute inset-x-4 top-4 z-[500] sm:left-auto sm:right-5 sm:w-[28rem] sm:max-w-[calc(100%_-_2.5rem)]">
+          <div className="absolute right-4 top-4 z-[500] w-[min(24rem,calc(100%_-_2rem))] sm:right-5">
             <DateRangeControls
-              key={dateRange ? `${dateRange.start}:${dateRange.end}` : 'no-range'}
+              key={`${selectedAOI?.centre.latitude ?? 'none'}:${selectedAOI?.centre.longitude ?? 'none'}:${dateRange?.start ?? 'none'}:${dateRange?.end ?? 'none'}`}
               range={dateRange}
               availableRange={availableRange}
-              latestRange={latestRange}
+              selectedAOI={selectedAOI}
               disabled={activityLoading}
-              onChange={handleDateRangeChange}
+              onApplyQuery={handleApplyQuery}
             />
           </div>
         </section>

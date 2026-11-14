@@ -16,7 +16,7 @@ function ActivityRing({ percentage }: { percentage: number }) {
 export function MapInfoPanel({ data = MOCK_MAP_INFO }: { data?: MapInfoPanelData }) {
   return (
     <aside
-      className="pointer-events-auto absolute right-4 top-20 z-[500] w-[min(42rem,calc(100%-2rem))] rounded-xl border border-slate-200 bg-white/90 p-2 shadow-lg shadow-slate-900/10 backdrop-blur-sm sm:right-5 sm:top-20 sm:p-3"
+      className="pointer-events-auto absolute right-4 top-[13rem] z-[500] w-[min(42rem,calc(100%-2rem))] rounded-xl border border-slate-200 bg-white/90 p-2 shadow-lg shadow-slate-900/10 backdrop-blur-sm sm:right-5 sm:top-[13rem] sm:p-3"
       aria-label="Historical fire activity summary"
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
