@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { MockHistoricalWildfireRepository } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
@@ -6,11 +6,15 @@ import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
 import type { AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls } from './features/filters/DateRangeControls'
+import { AddFireFieldNote } from './features/fire-annotations/AddFireFieldNote'
+import { MockFireAnnotationRepository } from './features/fire-annotations/MockFireAnnotationRepository'
 import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
+import type { NewFireFieldNote } from './types/annotation'
 
 const repository = new MockHistoricalWildfireRepository()
+const fireAnnotationRepository = new MockFireAnnotationRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
 const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
 
@@ -26,6 +30,7 @@ function HistoricalExplorerPage() {
   const [hotspotLoading, setHotspotLoading] = useState(false)
   const [activityError, setActivityError] = useState<string | null>(null)
   const [hotspotError, setHotspotError] = useState<string | null>(null)
+  const [annotationOpen, setAnnotationOpen] = useState(false)
 
   useEffect(() => {
     if (!selectedAOI) return
@@ -113,6 +118,10 @@ function HistoricalExplorerPage() {
     setHotspotError(null)
   }
 
+  async function handleAddFieldNote(note: NewFireFieldNote) {
+    await fireAnnotationRepository.add(note)
+  }
+
   const mapEmptyMessage = activityLoading
     ? undefined
     : monthlyActivity.length === 0
@@ -153,7 +162,60 @@ function HistoricalExplorerPage() {
             <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
           </section>
         )}
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-label="Report"
+          onClick={() => setAnnotationOpen(true)}
+          className="fixed right-0 top-1/2 z-[1200] flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-l-xl border border-r-0 border-slate-300 bg-white px-3 py-3 text-xs font-semibold text-slate-700 shadow-lg transition hover:bg-slate-50 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3.75h7.5l4.5 4.5v12a.75.75 0 0 1-.75.75h-11.25a.75.75 0 0 1-.75-.75v-15.75a.75.75 0 0 1 .75-.75Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 3.75v4.5h4.5M9 13.5h6M9 16.5h6" />
+          </svg>
+          <span>Report</span>
+        </button>
+        {annotationOpen && (
+          <FieldNoteDialog
+            onClose={() => setAnnotationOpen(false)}
+            onSubmit={handleAddFieldNote}
+            initialLocation={selectedAOI ? {
+              lat: selectedAOI.centre.latitude,
+              lng: selectedAOI.centre.longitude,
+            } : undefined}
+            initialEventDate={selectedMonth ?? ''}
+          />
+        )}
       </main>
+  )
+}
+
+interface FieldNoteDialogProps {
+  onClose: () => void
+  onSubmit: (note: NewFireFieldNote) => Promise<void>
+  initialLocation?: { lat: number; lng: number; name?: string }
+  initialEventDate: string
+}
+
+function FieldNoteDialog({ onClose, onSubmit, initialLocation, initialEventDate }: FieldNoteDialogProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (dialog && !dialog.open) dialog.showModal()
+  }, [])
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="field-note-title"
+      onClose={onClose}
+      className="m-auto max-h-[90vh] w-[min(42rem,calc(100vw-2rem))] max-w-none overflow-y-auto rounded-2xl border-0 bg-transparent p-0 shadow-2xl backdrop:bg-slate-950/50"
+    >
+      <div className="rounded-2xl bg-stone-50">
+        <AddFireFieldNote onSubmit={onSubmit} onClose={() => dialogRef.current?.close()} initialLocation={initialLocation} initialEventDate={initialEventDate} />
+      </div>
+    </dialog>
   )
 }
 
