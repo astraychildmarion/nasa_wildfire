@@ -1,21 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { MockHistoricalWildfireRepository } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
+import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
 import type { AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls } from './features/filters/DateRangeControls'
-import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, toMonthKey } from './shared/lib'
+import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
 
 const repository = new MockHistoricalWildfireRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
+const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
 
-function App() {
+function HistoricalExplorerPage() {
   const [selectedAOI, setSelectedAOI] = useState<AreaOfInterest | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<MonthRange | null>(null)
-  const [calendarMode] = useState<CalendarMode>('activity')
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('activity')
   const [sensorMode] = useState<SensorMode>('harmonized')
   const [monthlyActivity, setMonthlyActivity] = useState<MonthlyActivity[]>([])
   const [hotspots, setHotspots] = useState<HistoricalHotspot[]>([])
@@ -32,7 +35,7 @@ function App() {
       .then((records) => {
         if (cancelled) return
         setMonthlyActivity(records)
-        setDateRange(getLatestCompleteMonthRange(records))
+        setDateRange(getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null)))
       })
       .catch(() => {
         if (!cancelled) setActivityError('Historical monthly activity could not be loaded.')
@@ -42,7 +45,7 @@ function App() {
       })
 
     return () => { cancelled = true }
-  }, [selectedAOI])
+  }, [selectedAOI, sensorMode])
 
   useEffect(() => {
     if (!selectedAOI || !selectedMonth) return
@@ -69,10 +72,16 @@ function App() {
     [monthlyActivity],
   )
 
-  const visibleActivity = useMemo(() => {
+  const latestRange = useMemo(
+    () => getLatestCompleteMonthRange(monthlyActivity.filter((record) => record[sensorMode] !== null)),
+    [monthlyActivity, sensorMode],
+  )
+
+  const calendarCells = useMemo(() => {
+    const prepared = prepareCalendarCells(monthlyActivity, sensorMode, calendarMode, HISTORICAL_BASELINE)
     if (!dateRange) return []
-    return monthlyActivity.filter((record) => isMonthInRange(toMonthKey(record.year, record.month), dateRange))
-  }, [dateRange, monthlyActivity])
+    return prepared.filter((cell) => isMonthInRange(toMonthKey(cell.year, cell.month), dateRange))
+  }, [calendarMode, dateRange, monthlyActivity, sensorMode])
 
   function handleAOIChange(aoi: AreaOfInterest) {
     setSelectedAOI(aoi)
@@ -113,12 +122,6 @@ function App() {
         : 'Choose a calendar month to display historical hotspots.'
 
   return (
-    <div className="min-h-screen bg-stone-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white/90">
-        <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
-          <h1 className="text-lg font-semibold tracking-tight sm:text-xl">Historical Wildfire Activity Explorer</h1>
-        </div>
-      </header>
       <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         <section className="relative min-h-[34rem]">
           <FireMap
@@ -135,23 +138,68 @@ function App() {
               key={dateRange ? `${dateRange.start}:${dateRange.end}` : 'no-range'}
               range={dateRange}
               availableRange={availableRange}
+              latestRange={latestRange}
               disabled={activityLoading}
               onChange={handleDateRangeChange}
             />
           </div>
         </section>
-        <FireCalendar
-          records={visibleActivity}
-          selectedMonth={selectedMonth}
-          sensorMode={sensorMode}
-          calendarMode={calendarMode}
-          loading={activityLoading}
-          error={activityError}
-          hasAOI={selectedAOI !== null}
-          onMonthSelect={handleMonthSelect}
-        />
+        {!selectedAOI && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">Select a location on the map to load historical monthly activity.</section>}
+        {selectedAOI && activityLoading && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm" role="status">Loading historical monthly activity…</section>}
+        {selectedAOI && activityError && <section className="w-full rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700 shadow-sm" role="alert">{activityError}</section>}
+        {selectedAOI && !activityLoading && !activityError && (
+          <section>
+            <CalendarModeToggle mode={calendarMode} onChange={setCalendarMode} />
+            <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
+          </section>
+        )}
       </main>
-    </div>
+  )
+}
+
+function PredictionDashboardPlaceholder() {
+  return (
+    <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+        <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Historical &amp; Future Fire Activity</h2>
+          <p className="mt-3 text-sm text-slate-500">Trend chart placeholder</p>
+        </div>
+        <div className="min-h-[28rem] rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Future High-Risk Months</h2>
+          <p className="mt-3 text-sm text-slate-500">Risk outlook placeholder</p>
+        </div>
+      </section>
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Insight cards placeholder</p></div>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Model Confidence</h2><p className="mt-3 text-sm text-slate-500">Confidence card placeholder</p></div>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Limitations card placeholder</p></div>
+      </section>
+    </main>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <div className="min-h-screen bg-stone-50 text-slate-900">
+        <header className="border-b border-slate-200 bg-white/90">
+          <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+            <NavLink to="/history" className="text-lg font-semibold tracking-tight sm:text-xl">Historical Wildfire Activity Explorer</NavLink>
+            <nav className="flex flex-wrap items-center gap-2 text-sm" aria-label="Primary navigation">
+              <NavLink to="/history" className={({ isActive }) => `rounded-lg px-3 py-2 font-medium transition ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>Historical Fire Calendar</NavLink>
+              <NavLink to="/prediction" className={({ isActive }) => `rounded-lg px-3 py-2 font-medium transition ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>Trend Forecast &amp; Risk Outlook</NavLink>
+              <button type="button" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">Model Transparency &amp; Data Export</button>
+            </nav>
+          </div>
+        </header>
+        <Routes>
+          <Route path="/history" element={<HistoricalExplorerPage />} />
+          <Route path="/prediction" element={<PredictionDashboardPlaceholder />} />
+          <Route path="*" element={<Navigate to="/history" replace />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   )
 }
 
