@@ -12,12 +12,15 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "latest",
     "@tailwindcss/vite": "latest",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

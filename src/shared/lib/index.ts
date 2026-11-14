@@ -10,4 +10,12 @@ export type {
   BaselinePeriod,
   CalendarCell,
 } from './historicalActivity'
+export {
+  getLatestCompleteMonthRange,
+  getUtcMonthDateRange,
+  isMonthInRange,
+  toMonthKey,
+} from './months'
+export type { MonthRange } from './months'
+
 
