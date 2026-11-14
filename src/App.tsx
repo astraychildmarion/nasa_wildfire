@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MockHistoricalWildfireRepository } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
+import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
 import type { AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls } from './features/filters/DateRangeControls'
@@ -10,12 +11,13 @@ import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, 
 
 const repository = new MockHistoricalWildfireRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
+const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
 
 function App() {
   const [selectedAOI, setSelectedAOI] = useState<AreaOfInterest | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<MonthRange | null>(null)
-  const [calendarMode] = useState<CalendarMode>('activity')
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('activity')
   const [sensorMode] = useState<SensorMode>('harmonized')
   const [monthlyActivity, setMonthlyActivity] = useState<MonthlyActivity[]>([])
   const [hotspots, setHotspots] = useState<HistoricalHotspot[]>([])
@@ -75,12 +77,7 @@ function App() {
   )
 
   const calendarCells = useMemo(() => {
-    const years = monthlyActivity.map((record) => record.year)
-    const baseline = {
-      startYear: years.length > 0 ? Math.min(...years) : 0,
-      endYear: years.length > 0 ? Math.max(...years) : 0,
-    }
-    const prepared = prepareCalendarCells(monthlyActivity, sensorMode, calendarMode, baseline)
+    const prepared = prepareCalendarCells(monthlyActivity, sensorMode, calendarMode, HISTORICAL_BASELINE)
     if (!dateRange) return []
     return prepared.filter((cell) => isMonthInRange(toMonthKey(cell.year, cell.month), dateRange))
   }, [calendarMode, dateRange, monthlyActivity, sensorMode])
@@ -156,7 +153,10 @@ function App() {
         {selectedAOI && activityLoading && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm" role="status">Loading historical monthly activity…</section>}
         {selectedAOI && activityError && <section className="w-full rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700 shadow-sm" role="alert">{activityError}</section>}
         {selectedAOI && !activityLoading && !activityError && (
-          <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
+          <section>
+            <CalendarModeToggle mode={calendarMode} onChange={setCalendarMode} />
+            <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
+          </section>
         )}
       </main>
     </div>

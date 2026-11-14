@@ -98,7 +98,7 @@ export function prepareCalendarCells(
         complete: record.complete,
         baselineMedian,
         ...difference,
-        displayValue: mode === 'activity' ? value : difference.percentage,
+        displayValue: mode === 'activity' ? value : difference.absolute,
       }
     })
 }

@@ -71,7 +71,7 @@ describe('historical activity analytics', () => {
     expect(cells[2].displayValue).toBeNull()
   })
 
-  it('uses percentage difference as the anomaly display value', () => {
+  it('uses absolute difference as the anomaly display value', () => {
     const cells = prepareCalendarCells(
       records,
       'harmonized',
@@ -79,7 +79,33 @@ describe('historical activity analytics', () => {
       { startYear: 2019, endYear: 2021 },
     )
 
-    expect(cells.find((cell) => cell.year === 2020 && cell.month === 1)?.displayValue).toBe(100)
+    expect(cells.find((cell) => cell.year === 2020 && cell.month === 1)?.displayValue).toBe(10)
+  })
+
+  it('does not turn a missing historical comparison into zero anomaly', () => {
+    const cells = prepareCalendarCells(
+      [{ year: 2024, month: 3, harmonized: 9, modis: 4, viirs: 6, complete: true }],
+      'harmonized',
+      'anomaly',
+      { startYear: 2019, endYear: 2023 },
+    )
+
+    expect(cells[0]).toMatchObject({ baselineMedian: null, absolute: null, percentage: null, displayValue: null })
+  })
+
+  it('keeps an absolute anomaly when the baseline is zero and leaves percentage undefined', () => {
+    const cells = prepareCalendarCells(
+      [
+        { year: 2019, month: 2, harmonized: 0, modis: 0, viirs: 0, complete: true },
+        { year: 2024, month: 2, harmonized: 5, modis: 2, viirs: 3, complete: true },
+      ],
+      'harmonized',
+      'anomaly',
+      { startYear: 2019, endYear: 2023 },
+    )
+
+    expect(cells[1]).toMatchObject({ baselineMedian: 0, absolute: 5, percentage: null, displayValue: 5 })
   })
 })
+
 
