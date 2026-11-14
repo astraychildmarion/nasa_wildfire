@@ -13,6 +13,7 @@ import { PredictionTrendChart } from './features/prediction/PredictionTrendChart
 import { PredictionRiskDonut } from './features/prediction/PredictionRiskDonut'
 import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
 import { PredictionInsightsCard } from './features/prediction/PredictionInsightsCard'
+import { PredictionAboutCard } from './features/prediction/PredictionAboutCard'
 
 const repository = new MockHistoricalWildfireRepository()
 const predictionRepository = new MockPredictionRepository()
@@ -188,14 +189,16 @@ function PredictionDashboardPlaceholder() {
           {error && <p className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700" role="alert">{error}</p>}
         </div>
       </section>
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
-        <div className="grid w-full gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
+        <div className="grid w-full items-start gap-4 self-start md:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
           {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
-          <div>
+          <div className="self-start">
             {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Model Confidence</h2><p className="mt-3 text-sm text-slate-500">Loading confidence data…</p></div>}
           </div>
         </div>
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Limitations card placeholder</p></div>
+        <div className="self-start">
+          {prediction ? <PredictionAboutCard isMock={prediction.isMock} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Loading forecast information…</p></div>}
+        </div>
       </section>
     </main>
   )

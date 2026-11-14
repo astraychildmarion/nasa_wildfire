@@ -38,7 +38,7 @@ export function PredictionInsightsCard({ insights }: { insights: PredictionInsig
           </article>
         ))}
       </div>
-      <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-200 pt-3 text-[0.7rem] text-slate-500" aria-label="Insight direction colour legend">
+      <div className="mt-4 flex flex-wrap gap-3 text-[0.7rem] text-slate-500" aria-label="Insight direction colour legend">
         <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-500" />Increase</span>
         <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-blue-700" />Decrease</span>
         <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-slate-400" />No change</span>
