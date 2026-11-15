@@ -13,6 +13,17 @@ export function isMonthInRange(month: string, range: MonthRange): boolean {
   return month >= range.start && month <= range.end
 }
 
+export function clampMonthRange(
+  range: MonthRange,
+  available: MonthRange | null,
+): MonthRange | null {
+  if (!available || range.end < available.start || range.start > available.end) return null
+  return {
+    start: range.start < available.start ? available.start : range.start,
+    end: range.end > available.end ? available.end : range.end,
+  }
+}
+
 export function getLatestCompleteMonthRange(
   records: readonly MonthlyActivity[],
   count = 12,

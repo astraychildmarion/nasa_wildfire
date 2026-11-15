@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MonthlyActivity } from '../types'
-import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange } from './months'
+import { clampMonthRange, getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange } from './months'
 
 const record = (year: number, month: number, complete = true): MonthlyActivity => ({
   year, month, complete, harmonized: 1, modis: 1, viirs: 1,
@@ -18,6 +18,17 @@ describe('month utilities', () => {
     expect(isMonthInRange('2023-12', range)).toBe(true)
     expect(isMonthInRange('2024-02', range)).toBe(true)
     expect(isMonthInRange('2024-03', range)).toBe(false)
+  })
+
+  it('clamps a requested range to the available months', () => {
+    expect(clampMonthRange(
+      { start: '2011-11', end: '2025-11' },
+      { start: '2012-02', end: '2024-10' },
+    )).toEqual({ start: '2012-02', end: '2024-10' })
+    expect(clampMonthRange(
+      { start: '1990-01', end: '1991-01' },
+      { start: '2012-02', end: '2024-10' },
+    )).toBeNull()
   })
 
   it('creates an inclusive UTC date range for a selected month', () => {

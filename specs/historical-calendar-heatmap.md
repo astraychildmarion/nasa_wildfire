@@ -17,9 +17,9 @@ selected-month state → hotspot repository request → map marker update.
 
 ## Date navigation
 
-- The initial range remains the latest 12 complete available months.
-- Previous and next controls shift the inclusive range by one year within the available period.
-- A Latest control restores the default latest-12-month range.
+- The default inclusive range is November 2011 through November 2025.
+- The default or user-entered range is clamped to the period actually available from the API.
+- After an AOI loads, the range end is selected automatically for the initial map grid.
 
 ## Data ownership
 

@@ -9,7 +9,7 @@ import { DateRangeControls, type MapQueryValues } from './features/filters/DateR
 import { AddFireFieldNote } from './features/fire-annotations/AddFireFieldNote'
 import { MockFireAnnotationRepository } from './features/fire-annotations/MockFireAnnotationRepository'
 import { MOCK_MAP_FIELD_NOTES } from './features/fire-annotations/mockMapFieldNotes'
-import { getLatestCompleteMonthRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
+import { clampMonthRange, getLatestCompleteMonthRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, DataCoverage, HistoricalCalendarSummary, HistoricalGridData, MonthlyActivity, SensorMode } from './shared/types'
 import type { NewFireFieldNote } from './types/annotation'
@@ -27,6 +27,7 @@ const predictionRepository = new ApiPredictionRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
 const HISTORICAL_GRID_RADIUS_DEGREES = 3
 const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
+const DEFAULT_DATE_RANGE: MonthRange = { start: '2011-11', end: '2025-11' }
 const COVERAGE_MESSAGE = 'This prototype covers the United States.'
 const DEFAULT_CALIFORNIA_AOI: AreaOfInterest = {
   centre: { latitude: 37.25, longitude: -119.25 },
@@ -35,7 +36,7 @@ const DEFAULT_CALIFORNIA_AOI: AreaOfInterest = {
 
 function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRangeChange }: { selectedAOI: AreaOfInterest | null; onSelectedAOIChange: (aoi: AreaOfInterest) => void; onExportRangeChange: (range: MonthRange | null) => void }) {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
-  const [dateRange, setDateRange] = useState<MonthRange | null>(null)
+  const [dateRange, setDateRange] = useState<MonthRange | null>(DEFAULT_DATE_RANGE)
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('activity')
   const [sensorMode] = useState<SensorMode>('harmonized')
   const [monthlyActivity, setMonthlyActivity] = useState<MonthlyActivity[]>([])
@@ -72,9 +73,8 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
         const latest = getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null))
         const keys = records.map((record) => toMonthKey(record.year, record.month)).sort()
         const available = keys.length > 0 ? { start: keys[0], end: keys[keys.length - 1] } : null
-        const requested = pendingDateRangeRef.current
-        const intersects = requested && available && requested.end >= available.start && requested.start <= available.end
-        const nextRange = intersects ? { start: requested.start < available.start ? available.start : requested.start, end: requested.end > available.end ? available.end : requested.end } : latest
+        const requested = pendingDateRangeRef.current ?? DEFAULT_DATE_RANGE
+        const nextRange = clampMonthRange(requested, available) ?? latest
         setDateRange(nextRange)
         onExportRangeChange(nextRange)
         if (nextRange) {
@@ -126,6 +126,11 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
     if (!dateRange) return []
     return prepared.filter((cell) => isMonthInRange(toMonthKey(cell.year, cell.month), dateRange))
   }, [calendarMode, dateRange, monthlyActivity, sensorMode])
+  const showCalendar = selectedAOI !== null
+    && !activityLoading
+    && activityError === null
+    && coverage === 'inside'
+    && calendarCells.length > 0
 
   function handleAOIChange(aoi: AreaOfInterest, preferredRange?: MonthRange) {
     if (preferredRange) pendingDateRangeRef.current = preferredRange
@@ -188,43 +193,43 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
         : 'Choose a calendar month to display historical activity grids.'
 
   return (
-      <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <section className="relative min-h-[34rem]">
-          <FireMap
-            aoi={selectedAOI}
-            gridData={gridData}
-            fieldNotes={MOCK_MAP_FIELD_NOTES}
-            selectedMonth={selectedMonth}
-            selectedActivity={selectedMonth ? monthlyActivity.find((record) => toMonthKey(record.year, record.month) === selectedMonth) ?? null : null}
-            loading={activityLoading || gridLoading}
-            error={activityError ?? gridError}
-            aoiDimensions={AOI_DIMENSIONS}
-            emptyMessage={mapEmptyMessage}
-            infoPanelData={calendarSummary ? prepareMapInfoPanelData(calendarSummary) : undefined}
-            viirsNativeFrom={calendarSummary?.viirsNativeFrom}
-            onAOIChange={handleAOIChange}
+      <main className="mx-auto grid max-w-[1600px] gap-4 px-2 py-4 sm:px-3 lg:px-4 lg:py-6">
+        <section className="w-full">
+          <DateRangeControls
+            key={`${selectedAOI?.centre.latitude ?? 'none'}:${selectedAOI?.centre.longitude ?? 'none'}:${dateRange?.start ?? 'none'}:${dateRange?.end ?? 'none'}`}
+            range={dateRange}
+            availableRange={availableRange}
+            selectedAOI={selectedAOI}
+            disabled={activityLoading}
+            onApplyQuery={handleApplyQuery}
           />
-          <div className="absolute right-4 top-4 z-[500] w-[min(24rem,calc(100%_-_2rem))] sm:right-5">
-            <DateRangeControls
-              key={`${selectedAOI?.centre.latitude ?? 'none'}:${selectedAOI?.centre.longitude ?? 'none'}:${dateRange?.start ?? 'none'}:${dateRange?.end ?? 'none'}`}
-              range={dateRange}
-              availableRange={availableRange}
-              selectedAOI={selectedAOI}
-              disabled={activityLoading}
-              onApplyQuery={handleApplyQuery}
+        </section>
+        <section className={`grid items-start gap-2 ${showCalendar ? 'lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]' : 'grid-cols-1'}`}>
+          <section className="relative min-h-[34rem] min-w-0">
+            <FireMap
+              aoi={selectedAOI}
+              gridData={gridData}
+              fieldNotes={MOCK_MAP_FIELD_NOTES}
+              selectedMonth={selectedMonth}
+              selectedActivity={selectedMonth ? monthlyActivity.find((record) => toMonthKey(record.year, record.month) === selectedMonth) ?? null : null}
+              loading={activityLoading || gridLoading}
+              error={activityError ?? gridError}
+              aoiDimensions={AOI_DIMENSIONS}
+              emptyMessage={mapEmptyMessage}
+              infoPanelData={calendarSummary ? prepareMapInfoPanelData(calendarSummary) : undefined}
+              viirsNativeFrom={calendarSummary?.viirsNativeFrom}
+              onAOIChange={handleAOIChange}
             />
-          </div>
+          </section>
+          {showCalendar && <section className="min-w-0">
+            <CalendarModeToggle mode={calendarMode} onChange={setCalendarMode} />
+            <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
+          </section>}
         </section>
         {!selectedAOI && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">Select a location on the map to load historical monthly activity.</section>}
         {selectedAOI && activityLoading && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm" role="status">Loading historical monthly activity…</section>}
         {selectedAOI && activityError && <section className="w-full rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700 shadow-sm" role="alert">{activityError}</section>}
         {selectedAOI && !activityLoading && !activityError && coverage === 'outside' && <section className="w-full rounded-2xl border border-amber-200 bg-white p-5 text-sm text-amber-800 shadow-sm" role="status">{COVERAGE_MESSAGE}</section>}
-        {selectedAOI && !activityLoading && !activityError && coverage === 'inside' && (
-          <section>
-            <CalendarModeToggle mode={calendarMode} onChange={setCalendarMode} />
-            <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
-          </section>
-        )}
         <button
           type="button"
           aria-haspopup="dialog"

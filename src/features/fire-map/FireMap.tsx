@@ -90,6 +90,17 @@ function MapViewportController({ aoi }: { aoi: AreaOfInterest | null }) {
 	return null;
 }
 
+function MapResizeController() {
+	const map = useMap();
+	useEffect(() => {
+		const container = map.getContainer();
+		const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+		observer.observe(container);
+		return () => observer.disconnect();
+	}, [map]);
+	return null;
+}
+
 export interface FireMapProps {
 	aoi: AreaOfInterest | null;
 	gridData: HistoricalGridData | null;
@@ -152,6 +163,7 @@ export function FireMap({
 					onAOIChange={onAOIChange}
 				/>
 				<MapViewportController aoi={aoi} />
+				<MapResizeController />
 
 				{boundary && (
 					<Rectangle
@@ -225,10 +237,6 @@ export function FireMap({
 			</MapContainer>
 
 			<MapInfoPanel data={infoPanelData} />
-
-			<div className="pointer-events-none absolute left-4 top-4 z-[500] rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs font-medium text-slate-600 shadow backdrop-blur">
-				Fictional field note examples
-			</div>
 
 			{gridCells.length > 0 && (
 				<div className="pointer-events-none absolute bottom-5 left-5 z-[500] max-w-xs rounded-lg bg-white/90 px-3 py-2 text-[11px] text-slate-700 shadow-md ring-1 ring-slate-200 backdrop-blur-sm">

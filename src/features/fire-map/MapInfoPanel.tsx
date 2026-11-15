@@ -17,20 +17,20 @@ function signedPercent(value: number | null): string {
 export function MapInfoPanel({ data }: { data?: MapInfoPanelData }) {
   if (!data) return null
   return (
-    <aside className="pointer-events-auto absolute right-4 top-[13rem] z-[500] w-[min(42rem,calc(100%-2rem))] rounded-xl border border-slate-200 bg-white/90 p-2 shadow-lg shadow-slate-900/10 backdrop-blur-sm sm:right-5 sm:top-[13rem] sm:p-3" aria-label="Historical fire activity summary" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
-      <div className="grid grid-cols-3 divide-x divide-slate-200">
-        <section className="min-w-0 px-2 sm:px-4">
-          <div className="flex items-center gap-1 text-[0.6rem] font-medium uppercase tracking-wide text-slate-500 sm:text-xs"><WarningIcon /><span>Latest month anomaly</span></div>
+    <aside className="pointer-events-auto absolute right-4 top-4 z-[500] w-fit max-w-[calc(100%_-_2rem)] rounded-xl border border-slate-200 bg-white/80 px-4 py-2 shadow-lg shadow-slate-900/10 backdrop-blur-sm sm:right-5 sm:top-5" aria-label="Historical fire activity summary" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
+      <div className="divide-y divide-slate-200">
+        <section className="min-w-0 py-3">
+          <div className="flex items-center gap-1 whitespace-nowrap text-[0.6rem] font-medium uppercase tracking-wide text-slate-500 sm:text-xs"><WarningIcon /><span>Latest month anomaly</span></div>
           <p className="mt-1 truncate text-lg font-bold text-red-600 sm:text-2xl">{signedPercent(data.anomalyPercent)}</p>
           <p className="mt-0.5 text-[0.68rem] text-slate-500">{data.latestMonth}</p>
         </section>
-        <section className="min-w-0 px-2 sm:px-4">
-          <p className="text-[0.6rem] font-medium uppercase tracking-wide text-amber-700 sm:text-xs">Historical peak month</p>
+        <section className="min-w-0 py-3">
+          <p className="whitespace-nowrap text-[0.6rem] font-medium uppercase tracking-wide text-amber-700 sm:text-xs">Historical peak month</p>
           <p className="mt-1 truncate text-base font-bold text-slate-900 sm:text-2xl">{data.peakMonthLabel}</p>
           <p className="mt-0.5 text-[0.68rem] text-slate-500">Peak calendar month</p>
         </section>
-        <section className="min-w-0 px-2 sm:px-4">
-          <div className="flex items-center gap-1 text-[0.6rem] font-medium uppercase tracking-wide text-slate-500 sm:text-xs"><CalendarIcon /><span>Highest activity year</span></div>
+        <section className="min-w-0 py-3">
+          <div className="flex items-center gap-1 whitespace-nowrap text-[0.6rem] font-medium uppercase tracking-wide text-slate-500 sm:text-xs"><CalendarIcon /><span>Highest activity year</span></div>
           <p className="mt-1 truncate text-base font-bold text-slate-900 sm:text-2xl">{data.topYear ?? 'Unavailable'}</p>
           <p className="mt-0.5 truncate text-[0.68rem] text-slate-500">{data.topYearTotal === null ? 'Unavailable' : `${data.topYearTotal.toLocaleString(undefined, { maximumFractionDigits: 1 })} hotspots`}</p>
         </section>

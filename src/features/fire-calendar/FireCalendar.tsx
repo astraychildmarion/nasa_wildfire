@@ -60,29 +60,6 @@ function cellLabel(cell: CalendarCell, mode: CalendarMode): string {
   return `${month}: ${cell.value} historical fire activity`
 }
 
-function SummaryValue({ children }: { children: string }) {
-  return <dd className="mt-1 text-sm font-semibold text-slate-900">{children}</dd>
-}
-
-function ComparisonSummary({ cell }: { cell: CalendarCell }) {
-  const median = cell.baselineMedian === null ? 'Not comparable' : String(cell.baselineMedian)
-  const difference = cell.absolute === null ? 'Not comparable' : formatSigned(cell.absolute)
-  const percentage = cell.percentage !== null
-    ? `${formatSigned(cell.percentage)}%`
-    : cell.baselineMedian === 0 && cell.absolute !== null
-      ? 'Not defined'
-      : 'Not comparable'
-  return (
-    <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 sm:grid-cols-5" aria-label="Selected month comparison">
-      <div><dt className="text-xs text-slate-500">Selected month</dt><SummaryValue>{fullMonthLabel(cell.year, cell.month)}</SummaryValue></div>
-      <div><dt className="text-xs text-slate-500">Observed activity</dt><SummaryValue>{cell.value === null ? 'Unavailable' : String(cell.value)}</SummaryValue></div>
-      <div><dt className="text-xs text-slate-500">Historical median</dt><SummaryValue>{median}</SummaryValue></div>
-      <div><dt className="text-xs text-slate-500">Absolute difference</dt><SummaryValue>{difference}</SummaryValue></div>
-      <div><dt className="text-xs text-slate-500">Percentage difference</dt><SummaryValue>{percentage}</SummaryValue></div>
-    </dl>
-  )
-}
-
 function legendLabel(mode: CalendarMode): string {
   return mode === 'activity' ? 'activity colour scale' : 'anomaly colour scale'
 }
@@ -96,11 +73,6 @@ function colourForCell(cell: CalendarCell, mode: CalendarMode, maximum: number, 
   return mode === 'activity'
     ? getColour(cell.displayValue, maximum)
     : getAnomalyColour(cell.displayValue, maximumAbsolute)
-}
-
-function displayForCell(cell: CalendarCell, mode: CalendarMode): string {
-  if (cell.displayValue === null) return '—'
-  return mode === 'activity' ? String(cell.displayValue) : formatSigned(cell.displayValue)
 }
 
 function legendEnds(mode: CalendarMode): [string, string, string?] {
@@ -118,10 +90,6 @@ function unavailableLabel(cell: CalendarCell | undefined, monthLabel: string, ye
   return mode === 'anomaly'
     ? `${monthLabel} ${year}: not comparable`
     : `${monthLabel} ${year}: data unavailable`
-}
-
-function findSelectedCell(cells: Map<string, CalendarCell>, selectedMonth: string | null): CalendarCell | null {
-  return selectedMonth ? cells.get(selectedMonth) ?? null : null
 }
 
 function scaleMaximum(cells: CalendarCell[]): number {
@@ -143,8 +111,8 @@ export function FireCalendar({ cells, selectedMonth, calendarMode, onMonthSelect
   )
   const maximum = scaleMaximum(cells)
   const maximumAbsolute = anomalyMaximum(cells)
-  const selectedCell = findSelectedCell(cellByMonth, selectedMonth)
   const colours = legendColours(calendarMode)
+  const legendScaleColours = [...colours].reverse()
   const [lowLegend, highLegend, midpointLegend] = legendEnds(calendarMode)
 
   if (cells.length === 0) {
@@ -152,13 +120,13 @@ export function FireCalendar({ cells, selectedMonth, calendarMode, onMonthSelect
   }
 
   return (
-    <section className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section className="w-fit max-w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="overflow-x-auto pb-2">
-        <div className="grid min-w-[52rem] grid-cols-[4.5rem_repeat(12,minmax(3.5rem,1fr))] gap-1.5" role="grid" aria-label={calendarAriaLabel(calendarMode)}>
+        <div className="grid w-fit grid-cols-[2.5rem_repeat(12,1.5rem)] gap-0.5" role="grid" aria-label={calendarAriaLabel(calendarMode)}>
           <span aria-hidden="true" />
-          {monthLabels.map((month) => <span key={month} className="pb-1 text-center text-xs font-medium text-slate-500" role="columnheader">{month}</span>)}
+          {monthLabels.map((month) => <span key={month} className="pb-1 text-center text-[0.65rem] font-medium text-slate-500" role="columnheader">{month}</span>)}
           {years.flatMap((year) => [
-            <span key={`${year}-label`} className="flex items-center text-sm font-semibold text-slate-700" role="rowheader">{year}</span>,
+            <span key={`${year}-label`} className="flex h-6 items-center text-xs font-semibold text-slate-700" role="rowheader">{year}</span>,
             ...monthLabels.map((monthLabel, index) => {
               const month = index + 1
               const monthKey = toMonthKey(year, month)
@@ -166,7 +134,7 @@ export function FireCalendar({ cells, selectedMonth, calendarMode, onMonthSelect
 
               if (!cell || !cell.complete || cell.displayValue === null) {
                 const notComparable = calendarMode === 'anomaly' && cell !== undefined
-                return <span key={monthKey} className={`flex h-12 items-center justify-center rounded-md border border-slate-200 text-center font-medium text-slate-500 ${notComparable ? 'text-[0.6rem] leading-3' : 'text-xs'}`} style={missingPattern} role="gridcell" aria-label={unavailableLabel(cell, monthLabel, year, calendarMode)}>{notComparable ? <>Not<br />comparable</> : '—'}</span>
+                return <span key={monthKey} className="flex h-6 w-6 items-center justify-center rounded border border-slate-200 text-center text-[0.5rem] font-medium leading-none text-slate-500" style={missingPattern} role="gridcell" title={unavailableLabel(cell, monthLabel, year, calendarMode)} aria-label={unavailableLabel(cell, monthLabel, year, calendarMode)}>{notComparable ? 'N/C' : ''}</span>
               }
 
               const label = cellLabel(cell, calendarMode)
@@ -180,25 +148,24 @@ export function FireCalendar({ cells, selectedMonth, calendarMode, onMonthSelect
                   aria-label={label}
                   aria-pressed={selected}
                   onClick={() => onMonthSelect(monthKey)}
-                  className={`h-12 rounded-md border text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${colourForCell(cell, calendarMode, maximum, maximumAbsolute)} ${selected ? 'border-fuchsia-600 ring-2 ring-fuchsia-600 ring-offset-1' : 'border-white/60 hover:border-slate-700'}`}
-                >
-                  {displayForCell(cell, calendarMode)}
-                </button>
+                  className={`h-6 w-6 rounded border transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${colourForCell(cell, calendarMode, maximum, maximumAbsolute)} ${selected ? 'border-fuchsia-600 ring-2 ring-fuchsia-600 ring-offset-1' : 'border-white/60 hover:border-slate-700'}`}
+                />
               )
             }),
           ])}
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600" aria-label={legendLabel(calendarMode)}>
-        <span className="font-medium">{lowLegend}</span>
-        {colours.map((colour, index) => <span key={colour} className={`h-4 w-7 rounded-sm border border-slate-200 ${colour}`} aria-label={`Scale step ${index + 1} of ${colours.length}`} />)}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[0.6rem] text-slate-500" aria-label={legendLabel(calendarMode)}>
         <span className="font-medium">{highLegend}</span>
-        {midpointLegend && <span className="text-slate-400">Neutral midpoint: {midpointLegend}</span>}
-        <span className="ml-2 h-4 w-7 rounded-sm border border-slate-300" style={missingPattern} />
+        <div className="flex gap-0.5">
+          {legendScaleColours.map((colour, index) => <span key={colour} className={`h-2.5 w-4 rounded-sm border border-slate-200 ${colour}`} aria-label={`Scale step ${colours.length - index} of ${colours.length}`} />)}
+        </div>
+        <span className="font-medium">{lowLegend}</span>
+        {midpointLegend && <span className="text-slate-400">· {midpointLegend}</span>}
+        <span className="ml-1 h-2.5 w-4 rounded-sm border border-slate-300" style={missingPattern} />
         <span>Unavailable</span>
       </div>
-      {selectedCell && <ComparisonSummary cell={selectedCell} />}
     </section>
   )
 }

@@ -11,6 +11,7 @@ export type {
   CalendarCell,
 } from './historicalActivity'
 export {
+  clampMonthRange,
   getLatestCompleteMonthRange,
   getUtcMonthDateRange,
   isMonthInRange,

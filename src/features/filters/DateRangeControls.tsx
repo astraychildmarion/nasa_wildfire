@@ -20,17 +20,13 @@ export function DateRangeControls({ range, availableRange, selectedAOI, disabled
     setError(null); onApplyQuery({ start: nextStart, end: nextEnd, latitude, longitude })
   }
   return <div className="rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-900/10 backdrop-blur">
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-[minmax(7.5rem,1fr)_minmax(7.5rem,1fr)_minmax(6.5rem,0.8fr)_minmax(6.5rem,0.8fr)_auto] items-end gap-2">
       <label className="text-[11px] font-medium text-slate-600">Start month<input type="month" value={start} min={availableRange?.start} max={availableRange?.end} disabled={disabled} onChange={(event) => setStart(event.target.value)} className="mt-0.5 block w-full rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-900 disabled:bg-slate-100" /></label>
       <label className="text-[11px] font-medium text-slate-600">End month<input type="month" value={end} min={availableRange?.start} max={availableRange?.end} disabled={disabled} onChange={(event) => setEnd(event.target.value)} className="mt-0.5 block w-full rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-900 disabled:bg-slate-100" /></label>
-    </div>
-    <div className="mt-2 grid grid-cols-2 gap-2">
-      <label className="text-[11px] font-medium text-slate-600">Latitude (optional)<input inputMode="decimal" value={latitude} disabled={disabled} onChange={(event) => setLatitude(event.target.value)} placeholder="e.g. 45" className="mt-0.5 block w-full rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-900 disabled:bg-slate-100" /></label>
-      <label className="text-[11px] font-medium text-slate-600">Longitude (optional)<input inputMode="decimal" value={longitude} disabled={disabled} onChange={(event) => setLongitude(event.target.value)} placeholder="e.g. -100" className="mt-0.5 block w-full rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-900 disabled:bg-slate-100" /></label>
+      <label className="text-[11px] font-medium text-slate-600">Latitude<input inputMode="decimal" value={latitude} disabled={disabled} onChange={(event) => setLatitude(event.target.value)} placeholder="e.g. 45" className="mt-0.5 block w-full rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-900 disabled:bg-slate-100" /></label>
+      <label className="text-[11px] font-medium text-slate-600">Longitude<input inputMode="decimal" value={longitude} disabled={disabled} onChange={(event) => setLongitude(event.target.value)} placeholder="e.g. -100" className="mt-0.5 block w-full rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-900 disabled:bg-slate-100" /></label>
+      <button type="button" disabled={disabled} onClick={() => apply()} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Apply</button>
     </div>
     {error && <p className="mt-2 text-xs text-red-700" role="alert">{error}</p>}
-    <div className="mt-3 flex justify-end">
-      <button type="button" disabled={disabled} onClick={() => apply()} className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Apply</button>
-    </div>
   </div>
 }
