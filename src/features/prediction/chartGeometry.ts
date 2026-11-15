@@ -18,6 +18,13 @@ export interface TrendChartGeometry {
   minValue: number
 }
 
+export interface TrendChartRangeOptions {
+  includeZero?: boolean
+  paddingRatio?: number
+  rangeStartIndex?: number
+  rangeEndIndex?: number
+}
+
 export const CHART_WIDTH = 1000
 export const CHART_HEIGHT = 420
 export const MONTH_WIDTH = 16
@@ -46,11 +53,19 @@ function coordinates(values: Array<{ index: number; value: number }>, total: num
   }))
 }
 
-export function getTrendChartGeometry(points: readonly PredictionMonthlyPoint[], chartWidth = CHART_WIDTH): TrendChartGeometry {
-  const values = points.flatMap((point) => [point.observed, point.forecastMedian, point.lower95, point.upper95])
+export function getTrendChartGeometry(points: readonly PredictionMonthlyPoint[], chartWidth = CHART_WIDTH, options: TrendChartRangeOptions = {}): TrendChartGeometry {
+  const rangeStartIndex = Math.max(0, options.rangeStartIndex ?? 0)
+  const rangeEndIndex = Math.min(points.length, options.rangeEndIndex ?? points.length)
+  const rangePoints = points.slice(rangeStartIndex, Math.max(rangeStartIndex + 1, rangeEndIndex))
+  const values = rangePoints.flatMap((point) => [point.observed, point.forecastMedian, point.lower95, point.upper95])
     .filter((value): value is number => value !== null)
-  const minValue = Math.min(0, ...values)
-  const maxValue = Math.max(1, ...values)
+  const rawMinimum = values.length === 0 ? 0 : Math.min(...values)
+  const rawMaximum = values.length === 0 ? 1 : Math.max(...values)
+  const paddingRatio = Math.max(0, options.paddingRatio ?? 0)
+  const span = rawMaximum - rawMinimum
+  const padding = span > 0 ? span * paddingRatio : Math.max(Math.abs(rawMaximum) * paddingRatio, paddingRatio)
+  const minValue = options.includeZero === false ? Math.max(0, rawMinimum - padding) : Math.min(0, rawMinimum - padding)
+  const maxValue = Math.max(minValue + Number.EPSILON, rawMaximum + padding)
   const historical = points.flatMap((point, index) => point.observed === null ? [] : [{ index, value: point.observed }])
   const forecast = points.flatMap((point, index) => point.forecastMedian === null ? [] : [{ index, value: point.forecastMedian }])
   const lower80 = points.flatMap((point, index) => point.lower80 === null ? [] : [{ index, value: point.lower80 }])

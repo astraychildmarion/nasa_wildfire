@@ -8,6 +8,7 @@ selected-month state → hotspot repository request → map marker update.
 ## Rendering policy
 
 - The heatmap uses CSS Grid with January through December as columns and years as rows.
+- Year rows are ordered newest first so the latest available year appears at the top.
 - Complete numeric activity values are interactive buttons.
 - Zero is a valid observation and uses the lowest solid colour in the activity scale.
 - Missing, incomplete, and out-of-range cells use a patterned neutral appearance and are not selectable.

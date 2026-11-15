@@ -1,15 +1,17 @@
 import type {
   AreaOfInterest,
-  HistoricalHotspot,
+  HistoricalGridData,
+  HistoricalCalendarSummary,
   MonthlyActivity,
 } from '../shared/types'
 
 export interface HistoricalWildfireRepository {
   getMonthlyActivity(aoi: AreaOfInterest): Promise<MonthlyActivity[]>
-  getHotspots(
+  getCalendarSummary(aoi: AreaOfInterest): Promise<HistoricalCalendarSummary>
+  getHistoricalGridCells(
     aoi: AreaOfInterest,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<HistoricalHotspot[]>
+    startMonth: string,
+    endMonth: string,
+  ): Promise<HistoricalGridData>
 }
 
