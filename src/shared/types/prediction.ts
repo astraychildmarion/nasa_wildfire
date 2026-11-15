@@ -1,5 +1,43 @@
 import type { AreaOfInterest, SensorMode } from './wildfire'
 
+export type ForecastDays = 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+export type ForecastSource = 'model-api' | 'fallback-precomputed' | 'mock'
+
+export interface DailyForecastQuery {
+  aoi: AreaOfInterest
+  asOf?: string
+  days: ForecastDays
+}
+
+export interface DailyForecastSummary {
+  date: string
+  expectedFireCells: number
+  meanProbability: number
+  climatologyMeanProbability: number
+  anomaly: number | null
+}
+
+export interface ForecastGridCell {
+  date: string
+  cellId: string
+  latitude: number
+  longitude: number
+  probability: number
+  climatologyProbability: number
+  anomaly: number | null
+  observed: number | null
+}
+
+export interface DailyForecastData {
+  asOf: string
+  source: ForecastSource
+  region: DailyForecastSummary[]
+  items: ForecastGridCell[]
+  isMock: boolean
+}
+
+/** @deprecated Replaced by the daily forecast contract above. */
 export type PredictionPhase = 'historical' | 'forecast'
 
 export type PredictionRiskLevel = 'low' | 'moderate' | 'high' | 'extreme'

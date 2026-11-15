@@ -1,11 +1,79 @@
 import type { PredictionRepository } from './PredictionRepository'
 import type {
+  DailyForecastData,
+  DailyForecastQuery,
+  DailyForecastSummary,
+  ForecastGridCell,
   MonthlyRisk,
   PredictionDashboardData,
   PredictionMonthlyPoint,
   PredictionQuery,
   PredictionRiskLevel,
 } from '../shared/types'
+
+const DEFAULT_FORECAST_AS_OF = '2026-11-07'
+const GRID_OFFSETS = [
+  { latitude: -0.25, longitude: -0.25 },
+  { latitude: -0.25, longitude: 0.25 },
+  { latitude: 0.25, longitude: -0.25 },
+  { latitude: 0.25, longitude: 0.25 },
+] as const
+
+function addLocalDays(date: string, amount: number): string {
+  const [year, month, day] = date.split('-').map(Number)
+  const next = new Date(Date.UTC(year, month - 1, day + amount))
+  return next.toISOString().slice(0, 10)
+}
+
+function makeForecastCells(query: DailyForecastQuery, days: number): ForecastGridCell[] {
+  const asOf = query.asOf ?? DEFAULT_FORECAST_AS_OF
+  return Array.from({ length: days }, (_, dayIndex) => {
+    const date = addLocalDays(asOf, dayIndex + 1)
+    return GRID_OFFSETS.map((offset, cellIndex) => {
+      const probability = Number((0.12 + dayIndex * 0.045 + cellIndex * 0.065).toFixed(3))
+      const climatologyProbability = Number((0.1 + cellIndex * 0.035).toFixed(3))
+      return {
+        date,
+        cellId: `mock-${date}-${cellIndex + 1}`,
+        latitude: query.aoi.centre.latitude + offset.latitude,
+        longitude: query.aoi.centre.longitude + offset.longitude,
+        probability,
+        climatologyProbability,
+        anomaly: Number((probability / climatologyProbability).toFixed(3)),
+        observed: null,
+      }
+    })
+  }).flat()
+}
+
+function makeRegionSummaries(items: ForecastGridCell[]): DailyForecastSummary[] {
+  const dates = [...new Set(items.map((item) => item.date))]
+  return dates.map((date) => {
+    const cells = items.filter((item) => item.date === date)
+    const expectedFireCells = cells.reduce((total, cell) => total + cell.probability, 0)
+    const meanProbability = expectedFireCells / cells.length
+    const climatologyMeanProbability = cells.reduce((total, cell) => total + cell.climatologyProbability, 0) / cells.length
+    return {
+      date,
+      expectedFireCells: Number(expectedFireCells.toFixed(3)),
+      meanProbability: Number(meanProbability.toFixed(3)),
+      climatologyMeanProbability: Number(climatologyMeanProbability.toFixed(3)),
+      anomaly: climatologyMeanProbability === 0 ? null : Number((meanProbability / climatologyMeanProbability).toFixed(3)),
+    }
+  })
+}
+
+export function createMockDailyForecast(query: DailyForecastQuery): DailyForecastData {
+  const days = Math.max(1, Math.min(7, Math.floor(query.days)))
+  const items = makeForecastCells(query, days)
+  return {
+    asOf: query.asOf ?? DEFAULT_FORECAST_AS_OF,
+    source: 'mock',
+    region: makeRegionSummaries(items),
+    items,
+    isMock: true,
+  }
+}
 
 const seasonalThousands = [0.8, 0.6, 1, 1.8, 3.5, 6.8, 11.2, 13.8, 10.4, 5.4, 2.2, 1.1]
 const forecastStartYear = 2027
@@ -81,7 +149,7 @@ export function createMockPredictionDashboard(query: PredictionQuery): Predictio
 
   return {
     sensorMode: query.sensorMode,
-    unit: 'thousand hotspots',
+    unit: 'NOAA-20-equivalent hotspots per month',
     points,
     risks,
     highRiskMonth: 'August 2027',
@@ -100,6 +168,10 @@ export function createMockPredictionDashboard(query: PredictionQuery): Predictio
 }
 
 export class MockPredictionRepository implements PredictionRepository {
+  async getDailyForecast(query: DailyForecastQuery): Promise<DailyForecastData> {
+    return createMockDailyForecast(query)
+  }
+
   async getPredictionDashboard(query: PredictionQuery): Promise<PredictionDashboardData> {
     return createMockPredictionDashboard(query)
   }

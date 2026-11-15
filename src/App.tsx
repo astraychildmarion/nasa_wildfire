@@ -9,8 +9,8 @@ import { DateRangeControls, type MapQueryValues } from './features/filters/DateR
 import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
-import { PredictionTrendChart } from './features/prediction/PredictionTrendChart'
-import { PredictionRiskDonut } from './features/prediction/PredictionRiskDonut'
+import { DailyForecastChart } from './features/prediction/DailyForecastChart'
+import { HistoricalActivityChart } from './features/prediction/HistoricalActivityChart'
 import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
 import { PredictionInsightsCard } from './features/prediction/PredictionInsightsCard'
 import { PredictionAboutCard } from './features/prediction/PredictionAboutCard'
@@ -174,29 +174,27 @@ function HistoricalExplorerPage() {
 
 function PredictionDashboardPlaceholder() {
   const [prediction, setPrediction] = useState<Awaited<ReturnType<typeof predictionRepository.getPredictionDashboard>> | null>(null)
+  const [dailyForecast, setDailyForecast] = useState<Awaited<ReturnType<typeof predictionRepository.getDailyForecast>> | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    predictionRepository.getPredictionDashboard({ aoi: TEST_AOI, sensorMode: 'harmonized', forecastMonths: 12 })
-      .then((data) => { if (!cancelled) setPrediction(data) })
+    Promise.all([
+      predictionRepository.getPredictionDashboard({ aoi: TEST_AOI, sensorMode: 'harmonized', forecastMonths: 12 }),
+      predictionRepository.getDailyForecast({ aoi: TEST_AOI, days: 7 }),
+    ])
+      .then(([dashboard, forecast]) => { if (!cancelled) { setPrediction(dashboard); setDailyForecast(forecast) } })
       .catch(() => { if (!cancelled) setError('Prediction data could not be loaded.') })
     return () => { cancelled = true }
   }, [])
 
   return (
     <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
-        <div>
-          {prediction && <PredictionTrendChart points={prediction.points} unit={prediction.unit} />}
-          {!prediction && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
-          {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
-        </div>
-        <div className="min-h-[28rem]">
-          {prediction && <PredictionRiskDonut risks={prediction.risks} highRiskMonth={prediction.highRiskMonth} />}
-          {!prediction && !error && <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500" role="status">Loading risk outlook…</p>}
-          {error && <p className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700" role="alert">{error}</p>}
-        </div>
+      <section className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
+        {prediction && <HistoricalActivityChart points={prediction.points} unit={prediction.unit} />}
+        {dailyForecast && <DailyForecastChart summaries={dailyForecast.region} source={dailyForecast.source} />}
+        {(!prediction || !dailyForecast) && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
+        {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
       </section>
       <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
         <div className="grid w-full items-start gap-4 self-start md:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">

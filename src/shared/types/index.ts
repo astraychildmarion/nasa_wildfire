@@ -8,6 +8,12 @@ export type {
   SensorMode,
 } from './wildfire'
 export type {
+  DailyForecastData,
+  DailyForecastQuery,
+  DailyForecastSummary,
+  ForecastDays,
+  ForecastGridCell,
+  ForecastSource,
   ModelConfidence,
   MonthlyRisk,
   PredictionDashboardData,
