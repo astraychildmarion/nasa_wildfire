@@ -1,8 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import { MockPredictionRepository, createMockPredictionDashboard } from './MockPredictionRepository'
+import { MockPredictionRepository, createMockDailyForecast, createMockPredictionDashboard } from './MockPredictionRepository'
 import { TEST_AOI } from './mockHistoricalData'
 
 const query = { aoi: TEST_AOI, sensorMode: 'harmonized' as const, forecastMonths: 12 }
+const dailyQuery = { aoi: TEST_AOI, asOf: '2026-11-07', days: 7 as const }
+
+describe('MockPredictionRepository daily forecast', () => {
+  it('returns one regional summary and four grid cells for each requested day', async () => {
+    const data = await new MockPredictionRepository().getDailyForecast(dailyQuery)
+
+    expect(data.region).toHaveLength(7)
+    expect(data.items).toHaveLength(28)
+    expect(data.region[0].date).toBe('2026-11-08')
+    expect(data.region.at(-1)?.date).toBe('2026-11-14')
+  })
+
+  it('uses probability ratios without describing them as ignition probability', () => {
+    const data = createMockDailyForecast({ ...dailyQuery, days: 1 })
+
+    for (const item of data.items) {
+      expect(item.probability).toBeGreaterThanOrEqual(0)
+      expect(item.probability).toBeLessThanOrEqual(1)
+      expect(item.climatologyProbability).toBeGreaterThanOrEqual(0)
+      expect(item.observed).toBeNull()
+      expect(item.anomaly).toBeCloseTo(item.probability / item.climatologyProbability, 2)
+    }
+  })
+
+  it('is deterministic, AOI-relative, and explicitly marked as mock data', () => {
+    const first = createMockDailyForecast(dailyQuery)
+    const second = createMockDailyForecast(dailyQuery)
+
+    expect(first).toEqual(second)
+    expect(first.source).toBe('mock')
+    expect(first.isMock).toBe(true)
+    expect(first.items[0].latitude).toBe(TEST_AOI.centre.latitude - 0.25)
+    expect(first.items[0].longitude).toBe(TEST_AOI.centre.longitude - 0.25)
+  })
+})
 
 describe('MockPredictionRepository', () => {
   it('returns the expected historical and forecast periods', async () => {

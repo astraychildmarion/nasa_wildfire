@@ -1,9 +1,11 @@
 import type { HistoricalWildfireRepository } from './HistoricalWildfireRepository'
-import { MOCK_HOTSPOTS, MOCK_MONTHLY_ACTIVITY, TEST_AOI } from './mockHistoricalData'
+import { MOCK_HISTORICAL_GRID_CELLS, MOCK_MONTHLY_ACTIVITY, TEST_AOI } from './mockHistoricalData'
 import type {
   AreaOfInterest,
   GeographicPoint,
-  HistoricalHotspot,
+  HistoricalGridCell,
+  HistoricalGridData,
+  HistoricalCalendarSummary,
   MonthlyActivity,
 } from '../shared/types'
 
@@ -27,20 +29,39 @@ export class MockHistoricalWildfireRepository implements HistoricalWildfireRepos
     return MOCK_MONTHLY_ACTIVITY.map((record) => ({ ...record }))
   }
 
-  async getHotspots(
-    aoi: AreaOfInterest,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<HistoricalHotspot[]> {
-    const start = startDate.getTime()
-    const end = endDate.getTime()
+  async getCalendarSummary(): Promise<HistoricalCalendarSummary> {
+    return {
+      unit: 'NOAA-20-equivalent hotspots per month',
+      latestCompleteMonth: { month: '2027-11', value: 18, historicalMedian: 14, ratioToMedian: 1.29, percentileRank: 72 },
+      peakMonth: 8,
+      topYears: [{ year: 2020, total: 1250.5 }],
+      viirsNativeFrom: '2012-02',
+    }
+  }
 
-    return MOCK_HOTSPOTS
-      .filter((hotspot) => {
-        const detectedAt = Date.parse(hotspot.detectedAt)
-        return contains(aoi, hotspot) && detectedAt >= start && detectedAt <= end
-      })
-      .map((hotspot) => ({ ...hotspot }))
+  async getHistoricalGridCells(
+    aoi: AreaOfInterest,
+    startMonth: string,
+    endMonth: string,
+  ): Promise<HistoricalGridData> {
+    const rows = MOCK_HISTORICAL_GRID_CELLS
+      .filter((cell) => cell.month >= startMonth && cell.month <= endMonth && contains(aoi, cell))
+    const cells: HistoricalGridCell[] = rows.map((cell) => ({
+      cellId: cell.cellId,
+      latitude: cell.latitude,
+      longitude: cell.longitude,
+      bounds: { west: cell.longitude - 0.25, south: cell.latitude - 0.25, east: cell.longitude + 0.25, north: cell.latitude + 0.25 },
+      hotspotCount: cell.hotspotCount,
+      monthsWithFire: 1,
+    }))
+    return {
+      from: startMonth,
+      to: endMonth,
+      unit: 'NOAA-20-equivalent hotspots in range',
+      cellSize: 0.5,
+      maxHotspots: Math.max(0, ...cells.map((cell) => cell.hotspotCount)),
+      cells,
+    }
   }
 }
 

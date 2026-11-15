@@ -1,6 +1,6 @@
 import type {
   AreaOfInterest,
-  HistoricalHotspot,
+  HistoricalGridCsvRow,
   MonthlyActivity,
 } from '../shared/types'
 
@@ -10,16 +10,19 @@ export const TEST_AOI: AreaOfInterest = {
 }
 
 const seasonalActivity = [8, 6, 10, 18, 35, 68, 112, 138, 104, 54, 22, 11]
+const MOCK_START_MONTH_INDEX = 2000 * 12 + 10
+const MOCK_END_MONTH_INDEX = 2027 * 12 + 10
 
 function deterministicOffset(year: number, month: number, salt: number): number {
   return ((year * 17 + month * 23 + salt * 11) % 13) - 6
 }
 
 export const MOCK_MONTHLY_ACTIVITY: MonthlyActivity[] = Array.from(
-  { length: 6 * 12 },
+  { length: MOCK_END_MONTH_INDEX - MOCK_START_MONTH_INDEX + 1 },
   (_, index) => {
-    const year = 2019 + Math.floor(index / 12)
-    const month = (index % 12) + 1
+    const monthIndex = MOCK_START_MONTH_INDEX + index
+    const year = Math.floor(monthIndex / 12)
+    const month = (monthIndex % 12) + 1
     const seasonal = seasonalActivity[month - 1]
 
     const record: MonthlyActivity = {
@@ -45,14 +48,13 @@ export const MOCK_MONTHLY_ACTIVITY: MonthlyActivity[] = Array.from(
   },
 )
 
-export const MOCK_HOTSPOTS: HistoricalHotspot[] = [
-  { id: 'mock-001', latitude: 34.23, longitude: -118.41, detectedAt: '2021-06-18T19:25:00Z', sensor: 'viirs', confidence: 82 },
-  { id: 'mock-002', latitude: 38.44, longitude: -120.51, detectedAt: '2021-07-09T21:10:00Z', sensor: 'modis', confidence: 74 },
-  { id: 'mock-003', latitude: 39.72, longitude: -121.58, detectedAt: '2022-08-02T20:40:00Z', sensor: 'viirs', confidence: 91 },
-  { id: 'mock-004', latitude: 36.61, longitude: -118.82, detectedAt: '2022-09-14T18:05:00Z', sensor: 'modis' },
-  { id: 'mock-005', latitude: 40.12, longitude: -122.37, detectedAt: '2023-07-22T22:15:00Z', sensor: 'viirs', confidence: 88 },
-  { id: 'mock-006', latitude: 33.91, longitude: -116.72, detectedAt: '2023-10-06T17:45:00Z', sensor: 'modis', confidence: 67 },
-  { id: 'mock-007', latitude: 37.31, longitude: -119.09, detectedAt: '2024-06-29T19:55:00Z', sensor: 'viirs', confidence: 79 },
-  { id: 'mock-008', latitude: 41.08, longitude: -123.23, detectedAt: '2024-08-11T23:20:00Z', sensor: 'modis', confidence: 85 },
+export const MOCK_HISTORICAL_GRID_CELLS: HistoricalGridCsvRow[] = [
+  { month: '2023-07', cellId: 'grid-2023-07-1', latitude: 34.25, longitude: -118.25, hotspotCount: 18.4, source: 'MODISxk', partial: false },
+  { month: '2023-07', cellId: 'grid-2023-07-2', latitude: 34.75, longitude: -118.25, hotspotCount: 7.8, source: 'MODISxk', partial: false },
+  { month: '2023-10', cellId: 'grid-2023-10-1', latitude: 37.25, longitude: -119.25, hotspotCount: 4.25, source: 'MODISxk', partial: false },
+  { month: '2024-06', cellId: 'grid-2024-06-1', latitude: 38.25, longitude: -120.25, hotspotCount: 11.6, source: 'VIIRS', partial: false },
+  { month: '2024-06', cellId: 'grid-2024-06-2', latitude: 38.75, longitude: -120.25, hotspotCount: 22.1, source: 'VIIRS', partial: false },
+  { month: '2024-12', cellId: 'grid-2024-12-1', latitude: 36.25, longitude: -117.75, hotspotCount: 2.75, source: 'VIIRS', partial: true },
+  { month: '2027-11', cellId: 'grid-2027-11-1', latitude: 37.25, longitude: -119.25, hotspotCount: 6.35, source: 'VIIRS', partial: false },
 ]
 

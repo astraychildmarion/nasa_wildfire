@@ -21,6 +21,9 @@ Mock values are deterministic demonstration data, not scientific observations. H
 values are independently supplied mock values and are never derived by adding or otherwise
 combining MODIS and VIIRS values.
 
+The mock monthly availability period is inclusive from November 2000 through November 2027.
+The application still defaults to the latest 12 complete available months.
+
 ## Backend confirmation required
 
 - Timestamp serialization and timezone semantics.
