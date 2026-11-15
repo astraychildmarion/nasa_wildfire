@@ -129,7 +129,7 @@ function anomalyMaximum(cells: CalendarCell[]): number {
 
 export function FireCalendar({ cells, selectedMonth, calendarMode, onMonthSelect }: FireCalendarProps) {
   const years = useMemo(
-    () => [...new Set(cells.map((cell) => cell.year))].sort((left, right) => left - right),
+    () => [...new Set(cells.map((cell) => cell.year))].sort((left, right) => right - left),
     [cells],
   )
   const cellByMonth = useMemo(

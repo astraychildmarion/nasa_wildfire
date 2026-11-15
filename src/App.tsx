@@ -9,7 +9,7 @@ import { DateRangeControls, type MapQueryValues } from './features/filters/DateR
 import { getLatestCompleteMonthRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
 import type { AreaOfInterest, CalendarMode, HistoricalCalendarSummary, HistoricalGridData, MonthlyActivity, SensorMode } from './shared/types'
-import { DailyForecastChart } from './features/prediction/DailyForecastChart'
+import { DailyForecastDonut } from './features/prediction/DailyForecastDonut'
 import { HistoricalActivityChart } from './features/prediction/HistoricalActivityChart'
 import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
 import { PredictionInsightsCard } from './features/prediction/PredictionInsightsCard'
@@ -214,8 +214,8 @@ function PredictionDashboardPlaceholder({ selectedAOI }: { selectedAOI: AreaOfIn
   return (
     <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
       <section className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
-        {prediction && <HistoricalActivityChart points={prediction.points} unit={prediction.unit} displayDivisor={1000} displayUnit="thousand NOAA-20-equivalent hotspots per month" />}
-        {dailyForecast && <DailyForecastChart summaries={dailyForecast.region} source={dailyForecast.source} />}
+        {prediction && <HistoricalActivityChart points={prediction.points} unit={prediction.unit} displayDivisor={1000} displayUnit="thousand NOAA-20-equivalent hotspots per month" aoi={predictionAOI} isSelectedAOI={selectedAOI !== null} />}
+        {dailyForecast && <DailyForecastDonut summaries={dailyForecast.region} source={dailyForecast.source} />}
         {(!prediction || !dailyForecast) && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
       </section>
