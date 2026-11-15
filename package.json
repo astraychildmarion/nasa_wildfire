@@ -12,6 +12,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "html-to-image": "^1.11.13",
     "leaflet": "^1.9.4",
     "react": "latest",
     "react-dom": "latest",

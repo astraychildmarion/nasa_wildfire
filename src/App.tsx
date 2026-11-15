@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { ApiError, ApiHistoricalWildfireRepository, ApiPredictionRepository } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
@@ -20,6 +20,7 @@ import { PredictionInsightsCard } from './features/prediction/PredictionInsights
 import { PredictionAboutCard } from './features/prediction/PredictionAboutCard'
 import { prepareMapInfoPanelData } from './features/fire-map/mapInfoData'
 import { DataExportMenu } from './features/data-export/DataExportMenu'
+import { downloadPredictionPng } from './features/data-export/predictionPng'
 
 const repository = new ApiHistoricalWildfireRepository()
 const fireAnnotationRepository = new MockFireAnnotationRepository()
@@ -287,7 +288,13 @@ function FieldNoteDialog({ onClose, onSubmit, initialLocation, initialEventDate 
   )
 }
 
-function PredictionDashboardPlaceholder({ selectedAOI }: { selectedAOI: AreaOfInterest | null }) {
+interface PredictionDashboardPlaceholderProps {
+  selectedAOI: AreaOfInterest | null
+  exportTargetRef: React.RefObject<HTMLElement | null>
+  onExportAvailabilityChange: (available: boolean) => void
+}
+
+function PredictionDashboardPlaceholder({ selectedAOI, exportTargetRef, onExportAvailabilityChange }: PredictionDashboardPlaceholderProps) {
   const [prediction, setPrediction] = useState<Awaited<ReturnType<typeof predictionRepository.getPredictionDashboard>> | null>(null)
   const [dailyForecast, setDailyForecast] = useState<Awaited<ReturnType<typeof predictionRepository.getDailyForecast>> | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -327,8 +334,14 @@ function PredictionDashboardPlaceholder({ selectedAOI }: { selectedAOI: AreaOfIn
     return () => { cancelled = true }
   }, [predictionAOI])
 
+  const exportAvailable = prediction !== null && dailyForecast !== null && error === null
+  useEffect(() => {
+    onExportAvailabilityChange(exportAvailable)
+    return () => onExportAvailabilityChange(false)
+  }, [exportAvailable, onExportAvailabilityChange])
+
   return (
-    <main className="mx-auto grid max-w-[1600px] gap-3 px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
+    <main ref={exportTargetRef} className="mx-auto grid max-w-[1600px] gap-3 px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
       {error && <section className={`w-full rounded-2xl border bg-white p-5 text-sm shadow-sm ${error === COVERAGE_MESSAGE ? 'border-amber-200 text-amber-800' : 'border-red-200 text-red-700'}`} role="alert">{error}</section>}
       {!error && <><section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
         {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
@@ -350,6 +363,13 @@ function PredictionDashboardPlaceholder({ selectedAOI }: { selectedAOI: AreaOfIn
 function App() {
   const [selectedAOI, setSelectedAOI] = useState<AreaOfInterest | null>(null)
   const [exportRange, setExportRange] = useState<MonthRange | null>(null)
+  const [predictionPngAvailable, setPredictionPngAvailable] = useState(false)
+  const predictionExportTargetRef = useRef<HTMLElement | null>(null)
+  const handlePredictionExportAvailability = useCallback((available: boolean) => setPredictionPngAvailable(available), [])
+  const handlePredictionPngDownload = useCallback(async () => {
+    if (!predictionExportTargetRef.current) throw new Error('Prediction dashboard is not available.')
+    await downloadPredictionPng(predictionExportTargetRef.current)
+  }, [])
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-stone-50 text-slate-900">
@@ -359,13 +379,13 @@ function App() {
             <nav className="flex flex-wrap items-center gap-2 text-sm" aria-label="Primary navigation">
               <NavLink to="/history" className={({ isActive }) => `rounded-lg px-3 py-2 font-medium transition ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>Historical Fire Calendar</NavLink>
               <NavLink to="/prediction" className={({ isActive }) => `rounded-lg px-3 py-2 font-medium transition ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>Trend Forecast &amp; Risk Outlook</NavLink>
-              <DataExportMenu aoi={selectedAOI} range={exportRange} />
+              <DataExportMenu aoi={selectedAOI} range={exportRange} predictionPngAvailable={predictionPngAvailable} onDownloadPredictionPng={handlePredictionPngDownload} />
             </nav>
           </div>
         </header>
         <Routes>
           <Route path="/history" element={<HistoricalExplorerPage selectedAOI={selectedAOI} onSelectedAOIChange={setSelectedAOI} onExportRangeChange={setExportRange} />} />
-          <Route path="/prediction" element={<PredictionDashboardPlaceholder selectedAOI={selectedAOI} />} />
+          <Route path="/prediction" element={<PredictionDashboardPlaceholder selectedAOI={selectedAOI} exportTargetRef={predictionExportTargetRef} onExportAvailabilityChange={handlePredictionExportAvailability} />} />
           <Route path="*" element={<Navigate to="/history" replace />} />
         </Routes>
       </div>
