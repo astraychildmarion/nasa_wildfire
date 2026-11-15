@@ -9,8 +9,9 @@ import {
 } from 'react-leaflet';
 import { useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
-import type { AreaOfInterest, HistoricalHotspot } from '../../shared/types';
+import type { AreaOfInterest, HistoricalGridData, MonthlyActivity } from '../../shared/types';
 import { createAreaOfInterest, type AOIDimensions } from './aoi';
+import { GRID_COLORS, getGridCellBounds, getGridFillColor } from './gridScale';
 import { MapInfoPanel } from './MapInfoPanel';
 import type { MapInfoPanelData } from './mapInfoData';
 
@@ -47,7 +48,9 @@ function MapViewportController({ aoi }: { aoi: AreaOfInterest | null }) {
 
 export interface FireMapProps {
 	aoi: AreaOfInterest | null;
-	hotspots: HistoricalHotspot[];
+	gridData: HistoricalGridData | null;
+	selectedMonth: string | null;
+	selectedActivity: MonthlyActivity | null;
 	loading: boolean;
 	error: string | null;
 	aoiDimensions: AOIDimensions;
@@ -58,7 +61,9 @@ export interface FireMapProps {
 
 export function FireMap({
 	aoi,
-	hotspots,
+	gridData,
+	selectedMonth,
+	selectedActivity,
 	loading,
 	error,
 	aoiDimensions,
@@ -77,6 +82,9 @@ export function FireMap({
 		: loading
 			? 'bg-white/80 text-slate-700 ring-slate-200'
 			: 'bg-white/50 text-slate-600 ring-white/60';
+	const gridCells = gridData?.cells ?? [];
+	const maximumActivity = gridData?.maxHotspots ?? 0;
+	const partialMonth = selectedActivity?.complete === false;
 
 	return (
 		<section className="relative h-[34rem] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -125,51 +133,49 @@ export function FireMap({
 					</CircleMarker>
 				)}
 
-				{hotspots.map((hotspot) => (
-					<CircleMarker
-						key={hotspot.id}
-						center={[hotspot.latitude, hotspot.longitude]}
-						radius={6}
+				{gridCells.map((cell) => (
+					<Rectangle
+						key={cell.cellId}
+						bounds={getGridCellBounds(cell)}
 						bubblingMouseEvents={false}
 						pathOptions={{
-							color: '#991b1b',
-							fillColor: '#ef4444',
-							fillOpacity: 0.85,
-							weight: 2,
+							color: partialMonth ? '#7e22ce' : '#9a3412',
+							fillColor: getGridFillColor(cell.hotspotCount, maximumActivity),
+							fillOpacity: 0.72,
+							weight: partialMonth ? 2.5 : 1,
+							dashArray: partialMonth ? '6 4' : undefined,
 						}}
 					>
 						<Popup>
 							<div className="min-w-40 text-sm text-slate-800">
-								<strong>Historical fire detection</strong>
+								<strong>Monthly fire activity grid</strong>
 								<dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
-									<dt>Sensor</dt>
-									<dd className="uppercase">
-										{hotspot.sensor}
-									</dd>
-									<dt>Detected</dt>
-									<dd>
-										{new Date(
-											hotspot.detectedAt,
-										).toLocaleString()}
-									</dd>
-									<dt>Latitude</dt>
-									<dd>{hotspot.latitude.toFixed(3)}</dd>
-									<dt>Longitude</dt>
-									<dd>{hotspot.longitude.toFixed(3)}</dd>
-									{hotspot.confidence !== undefined && (
-										<>
-											<dt>Confidence</dt>
-											<dd>{hotspot.confidence}</dd>
-										</>
-									)}
+									<dt>Month</dt><dd>{selectedMonth ?? 'Unavailable'}</dd>
+									<dt>Activity</dt><dd>{cell.hotspotCount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</dd>
+									<dt>Unit</dt><dd>NOAA-20-equivalent hotspots</dd>
+									<dt>Source</dt><dd>{selectedActivity?.source ?? 'Unavailable'}</dd>
+									<dt>Grid centre</dt><dd>{cell.latitude.toFixed(2)}, {cell.longitude.toFixed(2)}</dd>
+									<dt>Status</dt><dd>{selectedActivity ? (selectedActivity.complete ? 'Complete month' : 'Partial month') : 'Unavailable'}</dd>
 								</dl>
 							</div>
 						</Popup>
-					</CircleMarker>
+					</Rectangle>
 				))}
 			</MapContainer>
 
 			<MapInfoPanel data={infoPanelData} />
+
+			{gridCells.length > 0 && (
+				<div className="pointer-events-none absolute bottom-5 left-5 z-[500] rounded-lg bg-white/85 px-3 py-2 text-[11px] text-slate-700 shadow-md ring-1 ring-slate-200 backdrop-blur-sm">
+					<p className="font-semibold">Monthly activity intensity</p>
+					<div className="mt-1 flex items-center gap-1" aria-label="Activity intensity from lower to higher">
+						<span>Lower</span>
+						{GRID_COLORS.map((color) => <i key={color} className="h-3 w-5" style={{ backgroundColor: color }} />)}
+						<span>Higher</span>
+					</div>
+					<p className="mt-1 text-[10px] text-slate-500">{gridData?.unit}</p>
+				</div>
+			)}
 
 			{!aoi && (
 				<div className="pointer-events-none absolute inset-x-4 bottom-5 z-[500] flex justify-center">
@@ -183,7 +189,7 @@ export function FireMap({
 			{aoi &&
 				(loading ||
 					error ||
-					(hotspots.length === 0 && emptyMessage)) && (
+					(gridCells.length === 0 && emptyMessage)) && (
 					<div
 						className="pointer-events-none absolute inset-x-4 bottom-5 z-[500] flex justify-center"
 						role="status"

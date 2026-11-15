@@ -191,7 +191,6 @@ export function FireCalendar({ cells, selectedMonth, calendarMode, onMonthSelect
         {midpointLegend && <span className="text-slate-400">Neutral midpoint: {midpointLegend}</span>}
         <span className="ml-2 h-4 w-7 rounded-sm border border-slate-300" style={missingPattern} />
         <span>Unavailable</span>
-        <span className="ml-auto text-slate-400">Mock activity values</span>
       </div>
       {selectedCell && <ComparisonSummary cell={selectedCell} />}
     </section>

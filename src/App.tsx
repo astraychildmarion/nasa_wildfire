@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import { MockHistoricalWildfireRepository, MockPredictionRepository, TEST_AOI } from './data'
+import { ApiError, ApiHistoricalWildfireRepository, MockPredictionRepository, TEST_AOI } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
 import { createAreaOfInterest, type AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls, type MapQueryValues } from './features/filters/DateRangeControls'
-import { getLatestCompleteMonthRange, getUtcMonthDateRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
+import { getLatestCompleteMonthRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
-import type { AreaOfInterest, CalendarMode, HistoricalHotspot, MonthlyActivity, SensorMode } from './shared/types'
+import type { AreaOfInterest, CalendarMode, HistoricalCalendarSummary, HistoricalGridData, MonthlyActivity, SensorMode } from './shared/types'
 import { DailyForecastChart } from './features/prediction/DailyForecastChart'
 import { HistoricalActivityChart } from './features/prediction/HistoricalActivityChart'
 import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
 import { PredictionInsightsCard } from './features/prediction/PredictionInsightsCard'
 import { PredictionAboutCard } from './features/prediction/PredictionAboutCard'
+import { prepareMapInfoPanelData } from './features/fire-map/mapInfoData'
 
-const repository = new MockHistoricalWildfireRepository()
+const repository = new ApiHistoricalWildfireRepository()
 const predictionRepository = new MockPredictionRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
 const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
@@ -27,26 +28,35 @@ function HistoricalExplorerPage() {
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('activity')
   const [sensorMode] = useState<SensorMode>('harmonized')
   const [monthlyActivity, setMonthlyActivity] = useState<MonthlyActivity[]>([])
-  const [hotspots, setHotspots] = useState<HistoricalHotspot[]>([])
+  const [gridData, setGridData] = useState<HistoricalGridData | null>(null)
+  const [calendarSummary, setCalendarSummary] = useState<HistoricalCalendarSummary | null>(null)
   const [activityLoading, setActivityLoading] = useState(false)
-  const [hotspotLoading, setHotspotLoading] = useState(false)
+  const [gridLoading, setGridLoading] = useState(false)
   const [activityError, setActivityError] = useState<string | null>(null)
-  const [hotspotError, setHotspotError] = useState<string | null>(null)
+  const [gridError, setGridError] = useState<string | null>(null)
   const pendingDateRangeRef = useRef<MonthRange | null>(null)
 
   useEffect(() => {
     if (!selectedAOI) return
     let cancelled = false
 
-    repository.getMonthlyActivity(selectedAOI)
-      .then((records) => {
+    Promise.all([repository.getMonthlyActivity(selectedAOI), repository.getCalendarSummary(selectedAOI)])
+      .then(([records, summary]) => {
         if (cancelled) return
         setMonthlyActivity(records)
-        setDateRange(pendingDateRangeRef.current ?? getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null)))
+        setCalendarSummary(summary)
+        const latest = getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null))
+        const keys = records.map((record) => toMonthKey(record.year, record.month)).sort()
+        const available = keys.length > 0 ? { start: keys[0], end: keys[keys.length - 1] } : null
+        const requested = pendingDateRangeRef.current
+        const intersects = requested && available && requested.end >= available.start && requested.start <= available.end
+        setDateRange(intersects ? { start: requested.start < available.start ? available.start : requested.start, end: requested.end > available.end ? available.end : requested.end } : latest)
         pendingDateRangeRef.current = null
       })
-      .catch(() => {
-        if (!cancelled) setActivityError('Historical monthly activity could not be loaded.')
+      .catch((error: unknown) => {
+        if (!cancelled) setActivityError(error instanceof ApiError
+          ? `Historical activity could not be loaded: ${error.detail}`
+          : 'Historical activity could not be loaded from the API.')
       })
       .finally(() => {
         if (!cancelled) setActivityLoading(false)
@@ -59,26 +69,26 @@ function HistoricalExplorerPage() {
     if (!selectedAOI || !selectedMonth) return
 
     let cancelled = false
-    const { start, end } = getUtcMonthDateRange(selectedMonth)
-
-    repository.getHotspots(selectedAOI, start, end)
+    repository.getHistoricalGridCells(selectedAOI, selectedMonth, selectedMonth)
       .then((records) => {
-        if (!cancelled) setHotspots(records)
+        if (!cancelled) setGridData(records)
       })
-      .catch(() => {
-        if (!cancelled) setHotspotError('Historical hotspots could not be loaded.')
+      .catch((error: unknown) => {
+        if (!cancelled) setGridError(error instanceof ApiError
+          ? `Historical activity grids could not be loaded: ${error.detail}`
+          : 'Historical activity grids could not be loaded.')
       })
       .finally(() => {
-        if (!cancelled) setHotspotLoading(false)
+        if (!cancelled) setGridLoading(false)
       })
 
     return () => { cancelled = true }
   }, [selectedAOI, selectedMonth])
 
-  const availableRange = useMemo(
-    () => getLatestCompleteMonthRange(monthlyActivity, monthlyActivity.length),
-    [monthlyActivity],
-  )
+  const availableRange = useMemo(() => {
+    const keys = monthlyActivity.map((record) => toMonthKey(record.year, record.month)).sort()
+    return keys.length > 0 ? { start: keys[0], end: keys[keys.length - 1] } : null
+  }, [monthlyActivity])
 
   const calendarCells = useMemo(() => {
     const prepared = prepareCalendarCells(monthlyActivity, sensorMode, calendarMode, HISTORICAL_BASELINE)
@@ -92,11 +102,12 @@ function HistoricalExplorerPage() {
     setSelectedMonth(null)
     setMonthlyActivity([])
     setDateRange(null)
-    setHotspots([])
+    setGridData(null)
+    setCalendarSummary(null)
     setActivityLoading(true)
-    setHotspotLoading(false)
+    setGridLoading(false)
     setActivityError(null)
-    setHotspotError(null)
+    setGridError(null)
   }
 
   function handleApplyQuery(values: MapQueryValues) {
@@ -114,18 +125,18 @@ function HistoricalExplorerPage() {
     setDateRange(nextRange)
     if (selectedMonth && !isMonthInRange(selectedMonth, nextRange)) {
       setSelectedMonth(null)
-      setHotspots([])
-      setHotspotLoading(false)
-      setHotspotError(null)
+      setGridData(null)
+      setGridLoading(false)
+      setGridError(null)
     }
   }
 
   function handleMonthSelect(month: string) {
     if (month === selectedMonth) return
     setSelectedMonth(month)
-    setHotspots([])
-    setHotspotLoading(true)
-    setHotspotError(null)
+    setGridData(null)
+    setGridLoading(true)
+    setGridError(null)
   }
 
   const mapEmptyMessage = activityLoading
@@ -133,19 +144,22 @@ function HistoricalExplorerPage() {
     : monthlyActivity.length === 0
       ? 'No historical activity is available for this selected area.'
       : selectedMonth
-        ? 'No historical hotspots were found for the selected month.'
-        : 'Choose a calendar month to display historical hotspots.'
+        ? 'No recorded grid activity was found for the selected month.'
+        : 'Choose a calendar month to display historical activity grids.'
 
   return (
       <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         <section className="relative min-h-[34rem]">
           <FireMap
             aoi={selectedAOI}
-            hotspots={hotspots}
-            loading={activityLoading || hotspotLoading}
-            error={activityError ?? hotspotError}
+            gridData={gridData}
+            selectedMonth={selectedMonth}
+            selectedActivity={selectedMonth ? monthlyActivity.find((record) => toMonthKey(record.year, record.month) === selectedMonth) ?? null : null}
+            loading={activityLoading || gridLoading}
+            error={activityError ?? gridError}
             aoiDimensions={AOI_DIMENSIONS}
             emptyMessage={mapEmptyMessage}
+            infoPanelData={calendarSummary ? prepareMapInfoPanelData(calendarSummary) : undefined}
             onAOIChange={handleAOIChange}
           />
           <div className="absolute right-4 top-4 z-[500] w-[min(24rem,calc(100%_-_2rem))] sm:right-5">
