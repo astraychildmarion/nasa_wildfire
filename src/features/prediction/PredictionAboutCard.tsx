@@ -6,13 +6,14 @@ export function PredictionAboutCard({ isMock }: { isMock: boolean }) {
         {isMock && <span className="rounded-full bg-slate-100 px-2 py-1 text-[0.65rem] font-medium uppercase tracking-wide text-slate-500">Mock preview</span>}
       </div>
       <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-        <p>Forecasts are probability-based estimates generated from historical observations and a statistical model.</p>
+        <p>The monthly outlook uses historical distributions for the same calendar month. It is a climatology outlook, not an LSTM forecast.</p>
+        <p>The 1–7 day forecast uses an LSTM to estimate daily satellite fire-detection probability for each 0.5° grid cell.</p>
         <p>They do not include sudden extreme weather or other factors that cannot be predicted from the historical record.</p>
         <p>Combine these results with current weather, satellite monitoring, and field information before making decisions.</p>
       </div>
       <details id="forecast-methodology" className="mt-4 border-t border-slate-200 pt-4 text-sm text-slate-600">
         <summary className="cursor-pointer font-medium text-slate-800">Detailed methodology</summary>
-        <p className="mt-2 leading-6">The dashboard separates historical observations from forecast medians and uncertainty intervals. Replaceable repository data will define the final model and interval semantics when the backend contract is confirmed.</p>
+        <p className="mt-2 leading-6">Monthly ranges come from same-month historical distributions. The daily chart compares the LSTM regional mean detection probability with its historical climatology.</p>
       </details>
       <a href="#forecast-methodology" className="mt-4 inline-flex text-sm font-medium text-blue-700 underline decoration-blue-200 underline-offset-4 hover:text-blue-900">Learn more</a>
     </section>

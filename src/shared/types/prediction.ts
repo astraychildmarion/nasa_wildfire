@@ -66,13 +66,13 @@ export interface MonthlyRisk {
 }
 
 export interface PredictionInsights {
-  nextThreeMonthsChangePercent: number
+  nextThreeMonthsChangePercent: number | null
   highRiskPeriod: string
-  longTermTrendPercent: number
+  longTermTrendPercent: number | null
 }
 
 export interface ModelConfidence {
-  scorePercent: number
+  scorePercent: number | null
   metric: string
   factors: string[]
 }

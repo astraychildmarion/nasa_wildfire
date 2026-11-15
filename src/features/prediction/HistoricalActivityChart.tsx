@@ -5,10 +5,14 @@ import { CHART_HEIGHT, getChartWidth, getChartX, getTrendChartGeometry, toPath }
 export interface HistoricalActivityChartProps {
   points: PredictionMonthlyPoint[]
   unit: string
+  displayDivisor?: number
+  displayUnit?: string
 }
 
-export function HistoricalActivityChart({ points, unit }: HistoricalActivityChartProps) {
-  const historicalPoints = useMemo(() => points.filter((point) => point.observed !== null), [points])
+export function HistoricalActivityChart({ points, unit, displayDivisor = 1, displayUnit = unit }: HistoricalActivityChartProps) {
+  const historicalPoints = useMemo(() => points
+    .filter((point) => point.observed !== null)
+    .map((point) => ({ ...point, observed: point.observed === null ? null : point.observed / displayDivisor })), [displayDivisor, points])
   const chartWidth = useMemo(() => getChartWidth(historicalPoints.length), [historicalPoints.length])
   const geometry = useMemo(() => getTrendChartGeometry(historicalPoints, chartWidth), [chartWidth, historicalPoints])
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -25,7 +29,7 @@ export function HistoricalActivityChart({ points, unit }: HistoricalActivityChar
         <h2 className="text-lg font-semibold text-slate-900">Historical Monthly Activity</h2>
       </div>
       <div ref={scrollRef} className="mt-3 overflow-x-auto rounded-lg border border-slate-100" tabIndex={0} aria-label="Scrollable historical monthly activity chart">
-        <svg className="h-auto" style={{ width: chartWidth, maxWidth: 'none' }} viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} role="img" aria-label={`Historical monthly activity in ${unit}`}>
+        <svg className="h-auto" style={{ width: chartWidth, maxWidth: 'none' }} viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} role="img" aria-label={`Historical monthly activity in ${displayUnit}`}>
           <title>Historical monthly fire activity</title>
           <desc>Monthly historical activity. The chart opens at the latest years and can be scrolled left for earlier history.</desc>
           {yTicks.map((value) => {
@@ -33,7 +37,7 @@ export function HistoricalActivityChart({ points, unit }: HistoricalActivityChar
             return <g key={value}><line x1="64" x2={chartWidth - 28} y1={y} y2={y} stroke="#e2e8f0" /><text x="56" y={y + 4} textAnchor="end" className="fill-slate-500 text-[11px]">{value.toFixed(1)}</text></g>
           })}
           <path d={toPath(geometry.historical)} fill="none" stroke="#1d4ed8" strokeWidth="2.25" />
-          {geometry.historical.map((point, index) => <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r="3.5" fill="#1d4ed8" stroke="#fff" strokeWidth="1"><title>{historicalPoints[index]?.month}: {point.value.toFixed(2)} {unit}</title></circle>)}
+          {geometry.historical.map((point, index) => <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r="3.5" fill="#1d4ed8" stroke="#fff" strokeWidth="1"><title>{historicalPoints[index]?.month}: {point.value.toFixed(2)} {displayUnit}</title></circle>)}
           {yearLabels.map(({ index, label }) => {
             const x = getChartX(index, historicalPoints.length, chartWidth)
             return <g key={label}><line x1={x} x2={x} y1="366" y2="372" stroke="#94a3b8" /><text x={x} y="392" textAnchor="middle" className="fill-slate-600 text-[11px]">{label}</text></g>

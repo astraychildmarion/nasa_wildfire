@@ -30,6 +30,7 @@ export function DailyForecastChart({ summaries, source }: DailyForecastChartProp
   const forecastPath = makePath(summaries.map((item) => item.meanProbability), xFor, yFor)
   const climatologyPath = makePath(summaries.map((item) => item.climatologyMeanProbability), xFor, yFor)
   const sourceLabel = source === 'model-api' ? 'Live model' : source === 'fallback-precomputed' ? 'Fallback forecast' : 'Mock data'
+  const sourceClass = source === 'model-api' ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-amber-50 text-amber-800 ring-amber-200'
 
   return (
     <section className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -37,7 +38,7 @@ export function DailyForecastChart({ summaries, source }: DailyForecastChartProp
         <div>
           <h2 className="text-lg font-semibold text-slate-900">1–7 Day Fire Detection Forecast</h2>
         </div>
-        <span className="w-fit rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-200">{sourceLabel}</span>
+        <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${sourceClass}`}>{sourceLabel}</span>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600" aria-label="Forecast chart legend">

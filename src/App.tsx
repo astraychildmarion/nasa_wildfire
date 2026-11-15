@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import { ApiError, ApiHistoricalWildfireRepository, MockPredictionRepository, TEST_AOI } from './data'
+import { ApiError, ApiHistoricalWildfireRepository, ApiPredictionRepository } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
@@ -15,14 +15,18 @@ import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
 import { PredictionInsightsCard } from './features/prediction/PredictionInsightsCard'
 import { PredictionAboutCard } from './features/prediction/PredictionAboutCard'
 import { prepareMapInfoPanelData } from './features/fire-map/mapInfoData'
+import { DataExportMenu } from './features/data-export/DataExportMenu'
 
 const repository = new ApiHistoricalWildfireRepository()
-const predictionRepository = new MockPredictionRepository()
+const predictionRepository = new ApiPredictionRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
 const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
+const DEFAULT_CALIFORNIA_AOI: AreaOfInterest = {
+  centre: { latitude: 37.25, longitude: -119.25 },
+  bounds: { west: -124.5, south: 32.5, east: -114, north: 42 },
+}
 
-function HistoricalExplorerPage() {
-  const [selectedAOI, setSelectedAOI] = useState<AreaOfInterest | null>(null)
+function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRangeChange }: { selectedAOI: AreaOfInterest | null; onSelectedAOIChange: (aoi: AreaOfInterest) => void; onExportRangeChange: (range: MonthRange | null) => void }) {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<MonthRange | null>(null)
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('activity')
@@ -50,7 +54,9 @@ function HistoricalExplorerPage() {
         const available = keys.length > 0 ? { start: keys[0], end: keys[keys.length - 1] } : null
         const requested = pendingDateRangeRef.current
         const intersects = requested && available && requested.end >= available.start && requested.start <= available.end
-        setDateRange(intersects ? { start: requested.start < available.start ? available.start : requested.start, end: requested.end > available.end ? available.end : requested.end } : latest)
+        const nextRange = intersects ? { start: requested.start < available.start ? available.start : requested.start, end: requested.end > available.end ? available.end : requested.end } : latest
+        setDateRange(nextRange)
+        onExportRangeChange(nextRange)
         pendingDateRangeRef.current = null
       })
       .catch((error: unknown) => {
@@ -63,7 +69,7 @@ function HistoricalExplorerPage() {
       })
 
     return () => { cancelled = true }
-  }, [selectedAOI, sensorMode])
+  }, [onExportRangeChange, selectedAOI, sensorMode])
 
   useEffect(() => {
     if (!selectedAOI || !selectedMonth) return
@@ -98,10 +104,11 @@ function HistoricalExplorerPage() {
 
   function handleAOIChange(aoi: AreaOfInterest, preferredRange?: MonthRange) {
     if (preferredRange) pendingDateRangeRef.current = preferredRange
-    setSelectedAOI(aoi)
+    onSelectedAOIChange(aoi)
     setSelectedMonth(null)
     setMonthlyActivity([])
     setDateRange(null)
+    onExportRangeChange(null)
     setGridData(null)
     setCalendarSummary(null)
     setActivityLoading(true)
@@ -118,11 +125,12 @@ function HistoricalExplorerPage() {
       return
     }
     if (selectedAOI) handleDateRangeChange(requestedRange)
-    else { pendingDateRangeRef.current = requestedRange; setDateRange(requestedRange) }
+    else { pendingDateRangeRef.current = requestedRange; setDateRange(requestedRange); onExportRangeChange(requestedRange) }
   }
 
   function handleDateRangeChange(nextRange: MonthRange) {
     setDateRange(nextRange)
+    onExportRangeChange(nextRange)
     if (selectedMonth && !isMonthInRange(selectedMonth, nextRange)) {
       setSelectedMonth(null)
       setGridData(null)
@@ -186,26 +194,27 @@ function HistoricalExplorerPage() {
   )
 }
 
-function PredictionDashboardPlaceholder() {
+function PredictionDashboardPlaceholder({ selectedAOI }: { selectedAOI: AreaOfInterest | null }) {
   const [prediction, setPrediction] = useState<Awaited<ReturnType<typeof predictionRepository.getPredictionDashboard>> | null>(null)
   const [dailyForecast, setDailyForecast] = useState<Awaited<ReturnType<typeof predictionRepository.getDailyForecast>> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const predictionAOI = selectedAOI ?? DEFAULT_CALIFORNIA_AOI
 
   useEffect(() => {
     let cancelled = false
     Promise.all([
-      predictionRepository.getPredictionDashboard({ aoi: TEST_AOI, sensorMode: 'harmonized', forecastMonths: 12 }),
-      predictionRepository.getDailyForecast({ aoi: TEST_AOI, days: 7 }),
+      predictionRepository.getPredictionDashboard({ aoi: predictionAOI, sensorMode: 'harmonized', forecastMonths: 12 }),
+      predictionRepository.getDailyForecast({ aoi: predictionAOI, days: 7 }),
     ])
       .then(([dashboard, forecast]) => { if (!cancelled) { setPrediction(dashboard); setDailyForecast(forecast) } })
-      .catch(() => { if (!cancelled) setError('Prediction data could not be loaded.') })
+      .catch((requestError: unknown) => { if (!cancelled) setError(requestError instanceof ApiError ? `Prediction data could not be loaded: ${requestError.detail}` : 'Prediction data could not be loaded.') })
     return () => { cancelled = true }
-  }, [])
+  }, [predictionAOI])
 
   return (
     <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
       <section className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
-        {prediction && <HistoricalActivityChart points={prediction.points} unit={prediction.unit} />}
+        {prediction && <HistoricalActivityChart points={prediction.points} unit={prediction.unit} displayDivisor={1000} displayUnit="thousand NOAA-20-equivalent hotspots per month" />}
         {dailyForecast && <DailyForecastChart summaries={dailyForecast.region} source={dailyForecast.source} />}
         {(!prediction || !dailyForecast) && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
@@ -214,7 +223,7 @@ function PredictionDashboardPlaceholder() {
         <div className="grid w-full items-start gap-4 self-start md:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
           {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
           <div className="self-start">
-            {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Model Confidence</h2><p className="mt-3 text-sm text-slate-500">Loading confidence data…</p></div>}
+            {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Monthly Outlook Evaluation</h2><p className="mt-3 text-sm text-slate-500">Loading evaluation data…</p></div>}
           </div>
         </div>
         <div className="self-start">
@@ -226,6 +235,8 @@ function PredictionDashboardPlaceholder() {
 }
 
 function App() {
+  const [selectedAOI, setSelectedAOI] = useState<AreaOfInterest | null>(null)
+  const [exportRange, setExportRange] = useState<MonthRange | null>(null)
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-stone-50 text-slate-900">
@@ -235,13 +246,13 @@ function App() {
             <nav className="flex flex-wrap items-center gap-2 text-sm" aria-label="Primary navigation">
               <NavLink to="/history" className={({ isActive }) => `rounded-lg px-3 py-2 font-medium transition ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>Historical Fire Calendar</NavLink>
               <NavLink to="/prediction" className={({ isActive }) => `rounded-lg px-3 py-2 font-medium transition ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>Trend Forecast &amp; Risk Outlook</NavLink>
-              <button type="button" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">Model Transparency &amp; Data Export</button>
+              <DataExportMenu aoi={selectedAOI} range={exportRange} />
             </nav>
           </div>
         </header>
         <Routes>
-          <Route path="/history" element={<HistoricalExplorerPage />} />
-          <Route path="/prediction" element={<PredictionDashboardPlaceholder />} />
+          <Route path="/history" element={<HistoricalExplorerPage selectedAOI={selectedAOI} onSelectedAOIChange={setSelectedAOI} onExportRangeChange={setExportRange} />} />
+          <Route path="/prediction" element={<PredictionDashboardPlaceholder selectedAOI={selectedAOI} />} />
           <Route path="*" element={<Navigate to="/history" replace />} />
         </Routes>
       </div>
