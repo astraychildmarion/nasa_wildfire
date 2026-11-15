@@ -23,3 +23,13 @@ export function createAreaOfInterest(
   }
 }
 
+export function expandAreaOfInterest(
+  aoi: AreaOfInterest,
+  radiusDegrees: number,
+): AreaOfInterest {
+  return createAreaOfInterest(aoi.centre, {
+    latitudeSpan: radiusDegrees * 2,
+    longitudeSpan: radiusDegrees * 2,
+  })
+}
+

@@ -1,4 +1,4 @@
-import type { AreaOfInterest, SensorMode } from './wildfire'
+import type { AreaOfInterest, DataCoverage, SensorMode } from './wildfire'
 
 export type ForecastDays = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
@@ -78,6 +78,8 @@ export interface ModelConfidence {
 }
 
 export interface PredictionDashboardData {
+  coverage: DataCoverage
+  cellCount: number
   sensorMode: SensorMode
   unit: string
   points: PredictionMonthlyPoint[]

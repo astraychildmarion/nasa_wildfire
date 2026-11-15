@@ -53,6 +53,12 @@ function FieldNoteTooltip({ note }: { note: FireFieldNote }) {
   )
 }
 
+function formatNativeBoundary(monthKey: string): string {
+	const [year, month] = monthKey.split('-').map(Number)
+	return new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' })
+		.format(new Date(Date.UTC(year, month - 1, 1)))
+}
+
 interface MapClickHandlerProps {
 	dimensions: AOIDimensions;
 	onAOIChange: (aoi: AreaOfInterest) => void;
@@ -95,6 +101,7 @@ export interface FireMapProps {
 	aoiDimensions: AOIDimensions;
 	emptyMessage?: string;
 	infoPanelData?: MapInfoPanelData;
+	viirsNativeFrom?: string;
 	onAOIChange: (aoi: AreaOfInterest) => void;
 }
 
@@ -109,6 +116,7 @@ export function FireMap({
 	aoiDimensions,
 	emptyMessage,
 	infoPanelData,
+	viirsNativeFrom,
 	onAOIChange,
 }: FireMapProps) {
 	const boundary: [[number, number], [number, number]] | null = aoi
@@ -130,7 +138,7 @@ export function FireMap({
 		<section className="relative h-[34rem] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 			<MapContainer
 				center={[45, -100]}
-				zoom={3}
+				zoom={4}
 				minZoom={2}
 				className="h-full w-full"
 				scrollWheelZoom
@@ -223,14 +231,16 @@ export function FireMap({
 			</div>
 
 			{gridCells.length > 0 && (
-				<div className="pointer-events-none absolute bottom-5 left-5 z-[500] rounded-lg bg-white/85 px-3 py-2 text-[11px] text-slate-700 shadow-md ring-1 ring-slate-200 backdrop-blur-sm">
-					<p className="font-semibold">Monthly activity intensity</p>
+				<div className="pointer-events-none absolute bottom-5 left-5 z-[500] max-w-xs rounded-lg bg-white/90 px-3 py-2 text-[11px] text-slate-700 shadow-md ring-1 ring-slate-200 backdrop-blur-sm">
+					<p className="font-semibold">Harmonized hotspot intensity</p>
 					<div className="mt-1 flex items-center gap-1" aria-label="Activity intensity from lower to higher">
 						<span>Lower</span>
 						{GRID_COLORS.map((color) => <i key={color} className="h-3 w-5" style={{ backgroundColor: color }} />)}
 						<span>Higher</span>
 					</div>
-					<p className="mt-1 text-[10px] text-slate-500">{gridData?.unit}</p>
+					<p className="mt-1 text-[10px] text-slate-600">NOAA-20-equivalent hotspots per 0.5° cell per month</p>
+					{viirsNativeFrom && <p className="mt-1 text-[10px] leading-4 text-slate-500">Before {formatNativeBoundary(viirsNativeFrom)}: MODIS scaled · From {formatNativeBoundary(viirsNativeFrom)}: VIIRS native</p>}
+					{selectedActivity?.source && <p className="mt-1 text-[10px] font-medium text-slate-600">Selected month: {selectedActivity.source === 'MODISxk' ? 'MODIS scaled' : 'VIIRS native'}</p>}
 				</div>
 			)}
 

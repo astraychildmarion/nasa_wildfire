@@ -3,10 +3,10 @@ import { MOCK_HISTORICAL_GRID_CELLS, MOCK_MONTHLY_ACTIVITY, TEST_AOI } from './m
 import type {
   AreaOfInterest,
   GeographicPoint,
+  HistoricalActivityData,
   HistoricalGridCell,
   HistoricalGridData,
   HistoricalCalendarSummary,
-  MonthlyActivity,
 } from '../shared/types'
 
 function contains(aoi: AreaOfInterest, point: GeographicPoint): boolean {
@@ -24,13 +24,15 @@ function overlapsTestArea(aoi: AreaOfInterest): boolean {
 }
 
 export class MockHistoricalWildfireRepository implements HistoricalWildfireRepository {
-  async getMonthlyActivity(aoi: AreaOfInterest): Promise<MonthlyActivity[]> {
-    if (!overlapsTestArea(aoi)) return []
-    return MOCK_MONTHLY_ACTIVITY.map((record) => ({ ...record }))
+  async getMonthlyActivity(aoi: AreaOfInterest): Promise<HistoricalActivityData> {
+    if (!overlapsTestArea(aoi)) return { coverage: 'outside', cellCount: 0, records: [] }
+    return { coverage: 'inside', cellCount: 1, records: MOCK_MONTHLY_ACTIVITY.map((record) => ({ ...record })) }
   }
 
   async getCalendarSummary(): Promise<HistoricalCalendarSummary> {
     return {
+      coverage: 'inside',
+      cellCount: 1,
       unit: 'NOAA-20-equivalent hotspots per month',
       latestCompleteMonth: { month: '2027-11', value: 18, historicalMedian: 14, ratioToMedian: 1.29, percentileRank: 72 },
       peakMonth: 8,
@@ -55,6 +57,7 @@ export class MockHistoricalWildfireRepository implements HistoricalWildfireRepos
       monthsWithFire: 1,
     }))
     return {
+      coverage: overlapsTestArea(aoi) ? 'inside' : 'outside',
       from: startMonth,
       to: endMonth,
       unit: 'NOAA-20-equivalent hotspots in range',

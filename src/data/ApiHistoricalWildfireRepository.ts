@@ -2,6 +2,8 @@ import type { HistoricalWildfireRepository } from './HistoricalWildfireRepositor
 import { ApiClient, ApiError, serializeBbox } from './apiClient'
 import type {
   AreaOfInterest,
+  DataCoverage,
+  HistoricalActivityData,
   HistoricalCalendarSummary,
   HistoricalGridData,
   HistoricalGridSource,
@@ -9,10 +11,14 @@ import type {
 } from '../shared/types'
 
 interface ActivityResponse {
+  coverage: DataCoverage
+  cellCount: number
   records: Array<MonthlyActivity & { source: string }>
 }
 
 interface CalendarResponse {
+  coverage: DataCoverage
+  cellCount: number
   unit: string
   latestCompleteMonth: HistoricalCalendarSummary['latestCompleteMonth']
   peakMonth: number | null
@@ -21,6 +27,7 @@ interface CalendarResponse {
 }
 
 interface HotspotsResponse {
+  coverage: DataCoverage
   from: string
   to: string
   unit: string
@@ -48,25 +55,34 @@ function requireArray(value: unknown, field: string): asserts value is unknown[]
 export class ApiHistoricalWildfireRepository implements HistoricalWildfireRepository {
   constructor(private readonly client = new ApiClient()) {}
 
-  async getMonthlyActivity(aoi: AreaOfInterest): Promise<MonthlyActivity[]> {
+  async getMonthlyActivity(aoi: AreaOfInterest): Promise<HistoricalActivityData> {
     const response = await this.client.get<ActivityResponse>('/api/activity', { bbox: serializeBbox(aoi) })
     requireArray(response.records, 'activity records')
-    return response.records.map((record) => ({
-      year: record.year,
-      month: record.month,
-      harmonized: record.harmonized,
-      modis: record.modis,
-      viirs: record.viirs,
-      complete: record.complete,
-      source: source(record.source),
-      dailyMean: record.dailyMean ?? null,
-    }))
+    return {
+      coverage: response.coverage,
+      cellCount: response.cellCount,
+      records: response.records.map((record) => ({
+        year: record.year,
+        month: record.month,
+        harmonized: record.harmonized,
+        modis: record.modis,
+        viirs: record.viirs,
+        complete: record.complete,
+        source: source(record.source),
+        dailyMean: record.dailyMean ?? null,
+        median: record.median ?? null,
+        anomaly: record.anomaly ?? null,
+        anomalyPercent: record.anomalyPercent ?? null,
+      })),
+    }
   }
 
   async getCalendarSummary(aoi: AreaOfInterest): Promise<HistoricalCalendarSummary> {
     const response = await this.client.get<CalendarResponse>('/api/calendar', { bbox: serializeBbox(aoi) })
     requireArray(response.topYears, 'calendar topYears')
     return {
+      coverage: response.coverage,
+      cellCount: response.cellCount,
       unit: response.unit,
       latestCompleteMonth: response.latestCompleteMonth,
       peakMonth: response.peakMonth,
@@ -83,6 +99,7 @@ export class ApiHistoricalWildfireRepository implements HistoricalWildfireReposi
     })
     requireArray(response.cells, 'hotspot cells')
     return {
+      coverage: response.coverage,
       from: response.from,
       to: response.to,
       unit: response.unit,

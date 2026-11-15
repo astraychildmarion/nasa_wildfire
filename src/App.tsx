@@ -4,14 +4,14 @@ import { ApiError, ApiHistoricalWildfireRepository, ApiPredictionRepository } fr
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
 import { FireMap } from './features/fire-map/FireMap'
-import { createAreaOfInterest, type AOIDimensions } from './features/fire-map/aoi'
+import { createAreaOfInterest, expandAreaOfInterest, type AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls, type MapQueryValues } from './features/filters/DateRangeControls'
 import { AddFireFieldNote } from './features/fire-annotations/AddFireFieldNote'
 import { MockFireAnnotationRepository } from './features/fire-annotations/MockFireAnnotationRepository'
 import { MOCK_MAP_FIELD_NOTES } from './features/fire-annotations/mockMapFieldNotes'
 import { getLatestCompleteMonthRange, isMonthInRange, prepareCalendarCells, toMonthKey } from './shared/lib'
 import type { MonthRange } from './shared/lib'
-import type { AreaOfInterest, CalendarMode, HistoricalCalendarSummary, HistoricalGridData, MonthlyActivity, SensorMode } from './shared/types'
+import type { AreaOfInterest, CalendarMode, DataCoverage, HistoricalCalendarSummary, HistoricalGridData, MonthlyActivity, SensorMode } from './shared/types'
 import type { NewFireFieldNote } from './types/annotation'
 import { DailyForecastDonut } from './features/prediction/DailyForecastDonut'
 import { HistoricalActivityChart } from './features/prediction/HistoricalActivityChart'
@@ -25,7 +25,9 @@ const repository = new ApiHistoricalWildfireRepository()
 const fireAnnotationRepository = new MockFireAnnotationRepository()
 const predictionRepository = new ApiPredictionRepository()
 const AOI_DIMENSIONS: AOIDimensions = { latitudeSpan: 4, longitudeSpan: 4 }
+const HISTORICAL_GRID_RADIUS_DEGREES = 3
 const HISTORICAL_BASELINE = { startYear: 2019, endYear: 2023 } as const
+const COVERAGE_MESSAGE = 'This prototype covers the United States.'
 const DEFAULT_CALIFORNIA_AOI: AreaOfInterest = {
   centre: { latitude: 37.25, longitude: -119.25 },
   bounds: { west: -124.5, south: 32.5, east: -114, north: 42 },
@@ -43,6 +45,7 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
   const [gridLoading, setGridLoading] = useState(false)
   const [activityError, setActivityError] = useState<string | null>(null)
   const [gridError, setGridError] = useState<string | null>(null)
+  const [coverage, setCoverage] = useState<DataCoverage | null>(null)
   const pendingDateRangeRef = useRef<MonthRange | null>(null)
   const [annotationOpen, setAnnotationOpen] = useState(false)
 
@@ -51,8 +54,19 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
     let cancelled = false
 
     Promise.all([repository.getMonthlyActivity(selectedAOI), repository.getCalendarSummary(selectedAOI)])
-      .then(([records, summary]) => {
+      .then(([activity, summary]) => {
         if (cancelled) return
+        if (activity.coverage === 'outside' || summary.coverage === 'outside') {
+          setCoverage('outside')
+          setMonthlyActivity([])
+          setCalendarSummary(null)
+          setDateRange(null)
+          onExportRangeChange(null)
+          pendingDateRangeRef.current = null
+          return
+        }
+        const records = activity.records
+        setCoverage('inside')
         setMonthlyActivity(records)
         setCalendarSummary(summary)
         const latest = getLatestCompleteMonthRange(records.filter((record) => record[sensorMode] !== null))
@@ -63,6 +77,10 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
         const nextRange = intersects ? { start: requested.start < available.start ? available.start : requested.start, end: requested.end > available.end ? available.end : requested.end } : latest
         setDateRange(nextRange)
         onExportRangeChange(nextRange)
+        if (nextRange) {
+          setSelectedMonth(nextRange.end)
+          setGridLoading(true)
+        }
         pendingDateRangeRef.current = null
       })
       .catch((error: unknown) => {
@@ -81,7 +99,8 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
     if (!selectedAOI || !selectedMonth) return
 
     let cancelled = false
-    repository.getHistoricalGridCells(selectedAOI, selectedMonth, selectedMonth)
+    const gridQueryArea = expandAreaOfInterest(selectedAOI, HISTORICAL_GRID_RADIUS_DEGREES)
+    repository.getHistoricalGridCells(gridQueryArea, selectedMonth, selectedMonth)
       .then((records) => {
         if (!cancelled) setGridData(records)
       })
@@ -117,6 +136,7 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
     onExportRangeChange(null)
     setGridData(null)
     setCalendarSummary(null)
+    setCoverage(null)
     setActivityLoading(true)
     setGridLoading(false)
     setActivityError(null)
@@ -159,7 +179,9 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
 
   const mapEmptyMessage = activityLoading
     ? undefined
-    : monthlyActivity.length === 0
+    : coverage === 'outside' || gridData?.coverage === 'outside'
+      ? COVERAGE_MESSAGE
+      : monthlyActivity.length === 0
       ? 'No historical activity is available for this selected area.'
       : selectedMonth
         ? 'No recorded grid activity was found for the selected month.'
@@ -179,6 +201,7 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
             aoiDimensions={AOI_DIMENSIONS}
             emptyMessage={mapEmptyMessage}
             infoPanelData={calendarSummary ? prepareMapInfoPanelData(calendarSummary) : undefined}
+            viirsNativeFrom={calendarSummary?.viirsNativeFrom}
             onAOIChange={handleAOIChange}
           />
           <div className="absolute right-4 top-4 z-[500] w-[min(24rem,calc(100%_-_2rem))] sm:right-5">
@@ -195,7 +218,8 @@ function HistoricalExplorerPage({ selectedAOI, onSelectedAOIChange, onExportRang
         {!selectedAOI && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">Select a location on the map to load historical monthly activity.</section>}
         {selectedAOI && activityLoading && <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm" role="status">Loading historical monthly activity…</section>}
         {selectedAOI && activityError && <section className="w-full rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700 shadow-sm" role="alert">{activityError}</section>}
-        {selectedAOI && !activityLoading && !activityError && (
+        {selectedAOI && !activityLoading && !activityError && coverage === 'outside' && <section className="w-full rounded-2xl border border-amber-200 bg-white p-5 text-sm text-amber-800 shadow-sm" role="status">{COVERAGE_MESSAGE}</section>}
+        {selectedAOI && !activityLoading && !activityError && coverage === 'inside' && (
           <section>
             <CalendarModeToggle mode={calendarMode} onChange={setCalendarMode} />
             <FireCalendar cells={calendarCells} selectedMonth={selectedMonth} calendarMode={calendarMode} onMonthSelect={handleMonthSelect} />
@@ -266,30 +290,54 @@ function PredictionDashboardPlaceholder({ selectedAOI }: { selectedAOI: AreaOfIn
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      predictionRepository.getPredictionDashboard({ aoi: predictionAOI, sensorMode: 'harmonized', forecastMonths: 12 }),
-      predictionRepository.getDailyForecast({ aoi: predictionAOI, days: 7 }),
-    ])
-      .then(([dashboard, forecast]) => { if (!cancelled) { setPrediction(dashboard); setDailyForecast(forecast) } })
-      .catch((requestError: unknown) => { if (!cancelled) setError(requestError instanceof ApiError ? `Prediction data could not be loaded: ${requestError.detail}` : 'Prediction data could not be loaded.') })
+
+    async function loadPrediction() {
+      try {
+        const dashboard = await predictionRepository.getPredictionDashboard({ aoi: predictionAOI, sensorMode: 'harmonized', forecastMonths: 12 })
+        if (cancelled) return
+        if (dashboard.coverage === 'outside') {
+          setPrediction(null)
+          setDailyForecast(null)
+          setError(COVERAGE_MESSAGE)
+          return
+        }
+        setPrediction(dashboard)
+        setDailyForecast(null)
+        setError(null)
+        const forecast = await predictionRepository.getDailyForecast({ aoi: predictionAOI, days: 7 })
+        if (!cancelled) setDailyForecast(forecast)
+      } catch (requestError: unknown) {
+        if (cancelled) return
+        setPrediction(null)
+        setDailyForecast(null)
+        setError(requestError instanceof ApiError && requestError.status === 404
+          ? COVERAGE_MESSAGE
+          : requestError instanceof ApiError
+            ? `Prediction data could not be loaded: ${requestError.detail}`
+            : 'Prediction data could not be loaded.')
+      }
+    }
+
+    void loadPrediction()
     return () => { cancelled = true }
   }, [predictionAOI])
 
   return (
     <main className="mx-auto grid max-w-[1600px] gap-3 px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
-      <section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
+      {error && <section className={`w-full rounded-2xl border bg-white p-5 text-sm shadow-sm ${error === COVERAGE_MESSAGE ? 'border-amber-200 text-amber-800' : 'border-red-200 text-red-700'}`} role="alert">{error}</section>}
+      {!error && <><section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
         {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
         {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Monthly Outlook Evaluation</h2><p className="mt-3 text-sm text-slate-500">Loading evaluation data…</p></div>}
       </section>
       <section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
         {prediction && <HistoricalActivityChart points={prediction.points} unit={prediction.unit} displayDivisor={1000} displayUnit="thousand NOAA-20-equivalent hotspots per month" aoi={predictionAOI} isSelectedAOI={selectedAOI !== null} />}
         {dailyForecast && <DailyForecastDonut summaries={dailyForecast.region} source={dailyForecast.source} />}
-        {(!prediction || !dailyForecast) && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
-        {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
+        {(!prediction || !dailyForecast) && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
       </section>
       <section className="w-full">
         {prediction ? <PredictionAboutCard isMock={prediction.isMock} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Loading forecast information…</p></div>}
       </section>
+      </>}
     </main>
   )
 }

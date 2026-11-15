@@ -148,6 +148,8 @@ export function createMockPredictionDashboard(query: PredictionQuery): Predictio
   const points = [...makeHistoricalPoints(), ...makeForecastPoints(forecastMonths)]
 
   return {
+    coverage: 'inside',
+    cellCount: 1,
     sensorMode: query.sensorMode,
     unit: 'NOAA-20-equivalent hotspots per month',
     points,

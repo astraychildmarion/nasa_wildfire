@@ -15,6 +15,8 @@ export interface AreaOfInterest {
   bounds: GeographicBounds
 }
 
+export type DataCoverage = 'inside' | 'outside'
+
 export type SensorMode = 'harmonized' | 'modis' | 'viirs'
 
 export type CalendarMode = 'activity' | 'anomaly'
@@ -28,6 +30,15 @@ export interface MonthlyActivity {
   complete: boolean
   source?: HistoricalGridSource
   dailyMean?: number | null
+  median?: number | null
+  anomaly?: number | null
+  anomalyPercent?: number | null
+}
+
+export interface HistoricalActivityData {
+  coverage: DataCoverage
+  cellCount: number
+  records: MonthlyActivity[]
 }
 
 export type HistoricalGridSource = 'MODISxk' | 'VIIRS'
@@ -42,6 +53,7 @@ export interface HistoricalGridCell {
 }
 
 export interface HistoricalGridData {
+  coverage: DataCoverage
   from: string
   to: string
   unit: string
@@ -74,6 +86,8 @@ export interface HistoricalYearTotal {
 }
 
 export interface HistoricalCalendarSummary {
+  coverage: DataCoverage
+  cellCount: number
   unit: string
   latestCompleteMonth: LatestCompleteMonthSummary | null
   peakMonth: number | null

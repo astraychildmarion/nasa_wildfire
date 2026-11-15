@@ -82,14 +82,17 @@ export function prepareCalendarCells(
     .sort((left, right) => left.year - right.year || left.month - right.month)
     .map((record) => {
       const value = record.complete ? getSensorValue(record, sensor) : null
-      const baselineMedian = calculateHistoricalSameMonthMedian(
-        records,
-        record.month,
-        sensor,
-        baseline,
-        record.year,
-      )
-      const difference = calculateDifferences(value, baselineMedian)
+      const hasBackendComparison = sensor === 'harmonized'
+        && ('median' in record || 'anomaly' in record || 'anomalyPercent' in record)
+      const baselineMedian = hasBackendComparison
+        ? (record.complete ? record.median ?? null : null)
+        : calculateHistoricalSameMonthMedian(records, record.month, sensor, baseline, record.year)
+      const difference = hasBackendComparison
+        ? {
+            absolute: record.complete ? record.anomaly ?? null : null,
+            percentage: record.complete ? record.anomalyPercent ?? null : null,
+          }
+        : calculateDifferences(value, baselineMedian)
 
       return {
         year: record.year,

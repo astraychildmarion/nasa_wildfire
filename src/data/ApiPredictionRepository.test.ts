@@ -10,7 +10,7 @@ function repositoryFor(body: unknown) {
 
 describe('ApiPredictionRepository', () => {
   it('requests the monthly outlook with bbox and a bounded month horizon', async () => {
-    const response = { sensorMode: 'harmonized', unit: 'NOAA-20-equivalent hotspots per month', points: [], risks: [], highRiskMonth: 'August 2027', insights: { nextThreeMonthsChangePercent: null, highRiskPeriod: 'August', longTermTrendPercent: null }, modelConfidence: { scorePercent: null, metric: 'Unavailable', factors: [] }, isMock: false }
+    const response = { coverage: 'inside', cellCount: 313, sensorMode: 'harmonized', unit: 'NOAA-20-equivalent hotspots per month', points: [], risks: [], highRiskMonth: 'August 2027', insights: { nextThreeMonthsChangePercent: null, highRiskPeriod: 'August', longTermTrendPercent: null }, modelConfidence: { scorePercent: null, metric: 'Unavailable', factors: [] }, isMock: false }
     const { repository, fetchImpl } = repositoryFor(response)
 
     await expect(repository.getPredictionDashboard({ aoi: TEST_AOI, sensorMode: 'harmonized', forecastMonths: 20 })).resolves.toEqual(response)

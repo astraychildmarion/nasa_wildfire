@@ -6,17 +6,26 @@ describe('MockHistoricalWildfireRepository', () => {
   const repository = new MockHistoricalWildfireRepository()
 
   it('returns deterministic monthly data across the configured availability period', async () => {
-    const first = await repository.getMonthlyActivity(TEST_AOI)
-    const second = await repository.getMonthlyActivity(TEST_AOI)
+    const firstResult = await repository.getMonthlyActivity(TEST_AOI)
+    const secondResult = await repository.getMonthlyActivity(TEST_AOI)
+    const first = firstResult.records
+    const second = secondResult.records
 
     expect(first).toEqual(second)
     expect(first).not.toBe(second)
+    expect(firstResult).toMatchObject({ coverage: 'inside', cellCount: 1 })
     expect(first.some((record) => record.harmonized === 0 && record.complete)).toBe(true)
     expect(first.some((record) => record.harmonized === null)).toBe(true)
     expect(first.some((record) => !record.complete)).toBe(true)
     expect(first).toHaveLength(325)
     expect(first[0]).toMatchObject({ year: 2000, month: 11 })
     expect(first.at(-1)).toMatchObject({ year: 2027, month: 11, complete: true })
+  })
+
+  it('marks an unsupported area as outside coverage instead of returning zero activity', async () => {
+    const outside = { centre: { latitude: 52, longitude: -8 }, bounds: { north: 54, south: 50, east: -6, west: -10 } }
+
+    await expect(repository.getMonthlyActivity(outside)).resolves.toEqual({ coverage: 'outside', cellCount: 0, records: [] })
   })
 
   it('returns deterministic monthly grid cells filtered by inclusive month range and AOI', async () => {

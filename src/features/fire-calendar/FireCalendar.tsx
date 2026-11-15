@@ -65,13 +65,18 @@ function SummaryValue({ children }: { children: string }) {
 }
 
 function ComparisonSummary({ cell }: { cell: CalendarCell }) {
-  const percentage = cell.percentage === null ? 'Not defined' : `${formatSigned(cell.percentage)}%`
-  const difference = cell.absolute === null ? 'Unavailable' : formatSigned(cell.absolute)
+  const median = cell.baselineMedian === null ? 'Not comparable' : String(cell.baselineMedian)
+  const difference = cell.absolute === null ? 'Not comparable' : formatSigned(cell.absolute)
+  const percentage = cell.percentage !== null
+    ? `${formatSigned(cell.percentage)}%`
+    : cell.baselineMedian === 0 && cell.absolute !== null
+      ? 'Not defined'
+      : 'Not comparable'
   return (
     <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 sm:grid-cols-5" aria-label="Selected month comparison">
       <div><dt className="text-xs text-slate-500">Selected month</dt><SummaryValue>{fullMonthLabel(cell.year, cell.month)}</SummaryValue></div>
       <div><dt className="text-xs text-slate-500">Observed activity</dt><SummaryValue>{cell.value === null ? 'Unavailable' : String(cell.value)}</SummaryValue></div>
-      <div><dt className="text-xs text-slate-500">Historical median</dt><SummaryValue>{cell.baselineMedian === null ? 'Unavailable' : String(cell.baselineMedian)}</SummaryValue></div>
+      <div><dt className="text-xs text-slate-500">Historical median</dt><SummaryValue>{median}</SummaryValue></div>
       <div><dt className="text-xs text-slate-500">Absolute difference</dt><SummaryValue>{difference}</SummaryValue></div>
       <div><dt className="text-xs text-slate-500">Percentage difference</dt><SummaryValue>{percentage}</SummaryValue></div>
     </dl>
@@ -111,7 +116,7 @@ function calendarAriaLabel(mode: CalendarMode): string {
 function unavailableLabel(cell: CalendarCell | undefined, monthLabel: string, year: number, mode: CalendarMode): string {
   if (!cell) return `${monthLabel} ${year}: outside selected range`
   return mode === 'anomaly'
-    ? `${monthLabel} ${year}: historical comparison unavailable`
+    ? `${monthLabel} ${year}: not comparable`
     : `${monthLabel} ${year}: data unavailable`
 }
 
@@ -160,7 +165,8 @@ export function FireCalendar({ cells, selectedMonth, calendarMode, onMonthSelect
               const cell = cellByMonth.get(monthKey)
 
               if (!cell || !cell.complete || cell.displayValue === null) {
-                return <span key={monthKey} className="flex h-12 items-center justify-center rounded-md border border-slate-200 text-xs font-medium text-slate-500" style={missingPattern} role="gridcell" aria-label={unavailableLabel(cell, monthLabel, year, calendarMode)}>—</span>
+                const notComparable = calendarMode === 'anomaly' && cell !== undefined
+                return <span key={monthKey} className={`flex h-12 items-center justify-center rounded-md border border-slate-200 text-center font-medium text-slate-500 ${notComparable ? 'text-[0.6rem] leading-3' : 'text-xs'}`} style={missingPattern} role="gridcell" aria-label={unavailableLabel(cell, monthLabel, year, calendarMode)}>{notComparable ? <>Not<br />comparable</> : '—'}</span>
               }
 
               const label = cellLabel(cell, calendarMode)

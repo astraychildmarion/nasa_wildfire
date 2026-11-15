@@ -12,6 +12,8 @@ the backend.
 - `partial` explicitly marks an unfinished month and must not be inferred as complete data.
 - Sources are normalized to `MODISxk` or `VIIRS`; a `-partial` CSV suffix maps to `partial: true`.
 - Missing grid data must not be presented as a precise zero without coverage confirmation.
+- An empty cell collection with `coverage: inside` represents genuine zero activity. With
+  `coverage: outside`, the UI displays the supported-region message instead.
 
 ## CSV parsing policy
 
@@ -30,7 +32,14 @@ consumers. Aggregated cell centres must not be converted back into precise hotsp
 ## Backend mapping
 
 - `/api/hotspots` accepts bbox filtering and returns `cellSize`, `maxHotspots`, and exact bounds.
+- The grid request uses a configurable three-degree radius around the selected AOI centre so the
+  map can show surrounding activity. This expanded query does not replace or resize the selected
+  AOI used by the calendar, prediction, export, or visible AOI boundary.
 - The map uses response bounds directly and scales colours with `hotspots / maxHotspots`.
 - The selected `/api/activity` record supplies month source and complete/partial status.
+- After an inside-coverage activity response, the selected range end is automatically selected so
+  the map requests and displays a monthly grid without requiring a separate calendar click.
+- The map legend identifies values as harmonized NOAA-20-equivalent monthly cell counts, displays
+  the backend-provided VIIRS-native boundary, and labels the selected month's source.
 - Whether absence of a returned cell means zero activity or unavailable coverage remains a
   backend semantic constraint; the UI does not draw an absent cell as an explicit zero.

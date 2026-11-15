@@ -82,6 +82,39 @@ describe('historical activity analytics', () => {
     expect(cells.find((cell) => cell.year === 2020 && cell.month === 1)?.displayValue).toBe(10)
   })
 
+  it('uses backend harmonized median and anomaly values when supplied', () => {
+    const cells = prepareCalendarCells(
+      [{ year: 2024, month: 8, harmonized: 30, modis: 12, viirs: 22, complete: true, median: 10, anomaly: 20, anomalyPercent: 200 }],
+      'harmonized',
+      'anomaly',
+      { startYear: 2019, endYear: 2023 },
+    )
+
+    expect(cells[0]).toMatchObject({ baselineMedian: 10, absolute: 20, percentage: 200, displayValue: 20 })
+  })
+
+  it('preserves backend null comparisons for incomplete months', () => {
+    const cells = prepareCalendarCells(
+      [{ year: 2026, month: 11, harmonized: 10, modis: null, viirs: 10, complete: false, median: null, anomaly: null, anomalyPercent: null }],
+      'harmonized',
+      'anomaly',
+      { startYear: 2019, endYear: 2023 },
+    )
+
+    expect(cells[0]).toMatchObject({ value: null, baselineMedian: null, absolute: null, percentage: null, displayValue: null })
+  })
+
+  it('keeps a backend anomaly when its median is zero without inventing a percentage', () => {
+    const cells = prepareCalendarCells(
+      [{ year: 2024, month: 2, harmonized: 5, modis: 2, viirs: 3, complete: true, median: 0, anomaly: 5, anomalyPercent: null }],
+      'harmonized',
+      'anomaly',
+      { startYear: 2019, endYear: 2023 },
+    )
+
+    expect(cells[0]).toMatchObject({ baselineMedian: 0, absolute: 5, percentage: null, displayValue: 5 })
+  })
+
   it('does not turn a missing historical comparison into zero anomaly', () => {
     const cells = prepareCalendarCells(
       [{ year: 2024, month: 3, harmonized: 9, modis: 4, viirs: 6, complete: true }],

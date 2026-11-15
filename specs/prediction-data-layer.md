@@ -28,6 +28,13 @@ deterministic mock source. It does not connect to a backend or modify UI compone
 The existing monthly prediction contract remains temporarily available so the current UI stays
 runnable. It will be removed when the daily forecast UI slice replaces all consumers.
 
+## Coverage policy
+
+- Monthly outlook responses preserve top-level `coverage` and `cellCount` metadata.
+- Outside-coverage outlooks are not rendered as zero-valued forecasts.
+- The frontend does not request the daily forecast after an outside-coverage outlook response.
+- A daily forecast 404 uses the same United States coverage message.
+
 ## Backend confirmation required
 
 - Whether backend probability fields use `0..1` or `0..100` (the frontend currently assumes

@@ -72,6 +72,7 @@ describe('MockPredictionRepository', () => {
 
     expect(first).toEqual(createMockPredictionDashboard(query))
     expect(first.sensorMode).toBe('harmonized')
+    expect(first).toMatchObject({ coverage: 'inside', cellCount: 1 })
     expect(second.sensorMode).toBe('viirs')
     expect(first.isMock).toBe(true)
   })

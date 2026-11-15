@@ -10,8 +10,11 @@
   `title`, and `detail` when supplied.
 - Network failures and invalid successful JSON responses are reported as API errors.
 - Runtime repositories must not silently replace failed real responses with mock data.
+- Top-level `coverage` metadata is preserved. Outside results are never presented as zero
+  activity, while inside results with no cells remain valid zero-activity results.
+- A 404 from the daily forecast is presented as an unsupported-region state.
 
 ## Rollout
 
 Historical runtime data uses `/api/activity`, `/api/calendar`, and `/api/hotspots`. Prediction
-remains on its mock repository until its separate reviewable migration slice.
+runtime data uses `/api/outlook` and `/api/forecast`.
