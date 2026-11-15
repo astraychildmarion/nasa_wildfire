@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { ApiError, ApiHistoricalWildfireRepository, ApiPredictionRepository } from './data'
 import { FireCalendar } from './features/fire-calendar/FireCalendar'
 import { CalendarModeToggle } from './features/fire-calendar/CalendarModeToggle'
@@ -21,6 +21,8 @@ import { PredictionAboutCard } from './features/prediction/PredictionAboutCard'
 import { prepareMapInfoPanelData } from './features/fire-map/mapInfoData'
 import { DataExportMenu } from './features/data-export/DataExportMenu'
 import { downloadPredictionPng } from './features/data-export/predictionPng'
+import GlobalHomePage from './features/global-home/GlobalHomePage'
+import { createHomeDemoAreaOfInterest } from './features/global-home/demoLocation'
 
 const repository = new ApiHistoricalWildfireRepository()
 const fireAnnotationRepository = new MockFireAnnotationRepository()
@@ -360,7 +362,7 @@ function PredictionDashboardPlaceholder({ selectedAOI, exportTargetRef, onExport
   )
 }
 
-function App() {
+function AppContent() {
   const [selectedAOI, setSelectedAOI] = useState<AreaOfInterest | null>(null)
   const [exportRange, setExportRange] = useState<MonthRange | null>(null)
   const [predictionPngAvailable, setPredictionPngAvailable] = useState(false)
@@ -370,10 +372,17 @@ function App() {
     if (!predictionExportTargetRef.current) throw new Error('Prediction dashboard is not available.')
     await downloadPredictionPng(predictionExportTargetRef.current)
   }, [])
+  const location = useLocation()
+  const navigate = useNavigate()
+  const showApplicationHeader = location.pathname === '/history' || location.pathname === '/prediction'
+  const handleHomeSelection = useCallback(() => {
+    setSelectedAOI(createHomeDemoAreaOfInterest(AOI_DIMENSIONS))
+    navigate('/history')
+  }, [navigate])
+
   return (
-    <BrowserRouter>
       <div className="min-h-screen bg-stone-50 text-slate-900">
-        <header className="border-b border-slate-200 bg-white/90">
+        {showApplicationHeader && <header className="border-b border-slate-200 bg-white/90">
           <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
             <NavLink to="/history" className="text-lg font-semibold tracking-tight sm:text-xl">Historical Wildfire Activity Explorer</NavLink>
             <nav className="flex flex-wrap items-center gap-2 text-sm" aria-label="Primary navigation">
@@ -382,13 +391,21 @@ function App() {
               <DataExportMenu aoi={selectedAOI} range={exportRange} predictionPngAvailable={predictionPngAvailable} onDownloadPredictionPng={handlePredictionPngDownload} />
             </nav>
           </div>
-        </header>
+        </header>}
         <Routes>
+          <Route path="/" element={<GlobalHomePage onSelectRegion={handleHomeSelection} />} />
           <Route path="/history" element={<HistoricalExplorerPage selectedAOI={selectedAOI} onSelectedAOIChange={setSelectedAOI} onExportRangeChange={setExportRange} />} />
           <Route path="/prediction" element={<PredictionDashboardPlaceholder selectedAOI={selectedAOI} exportTargetRef={predictionExportTargetRef} onExportAvailabilityChange={handlePredictionExportAvailability} />} />
-          <Route path="*" element={<Navigate to="/history" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   )
 }
