@@ -32,14 +32,14 @@ export function DailyForecastDonut({ summaries, source }: DailyForecastDonutProp
   const sourceClass = source === 'model-api' ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-amber-50 text-amber-800 ring-amber-200'
 
   return (
-    <section className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">1–7 Day Fire Detection Forecast</h2>
         <span className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${sourceClass}`}>{sourceLabel}</span>
       </div>
 
-      <div className="mt-3 flex justify-center">
-        <div className="relative h-64 w-64">
+      <div className="mt-2 flex justify-center">
+        <div className="relative h-56 w-56">
           <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-full w-full" role="img" aria-label="Daily regional mean fire detection probability donut">
             <title>1–7 day regional mean fire detection probability</title>
             <desc>Each equal segment represents one local forecast day. Segment colour represents fire detection probability.</desc>

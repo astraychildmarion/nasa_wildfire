@@ -44,7 +44,7 @@ export function HistoricalActivityChart({ points, unit, displayDivisor = 1, disp
   }, [chartWidth, updateVisibleRange])
 
   return (
-    <section className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">Historical Monthly Activity</h2>
         <div className="flex flex-wrap items-center justify-end gap-3 text-xs text-slate-600">

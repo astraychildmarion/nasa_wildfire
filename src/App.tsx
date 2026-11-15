@@ -212,23 +212,19 @@ function PredictionDashboardPlaceholder({ selectedAOI }: { selectedAOI: AreaOfIn
   }, [predictionAOI])
 
   return (
-    <main className="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-      <section className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
+    <main className="mx-auto grid max-w-[1600px] gap-3 px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
+      <section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
+        {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
+        {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Monthly Outlook Evaluation</h2><p className="mt-3 text-sm text-slate-500">Loading evaluation data…</p></div>}
+      </section>
+      <section className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(26rem,1.25fr)]">
         {prediction && <HistoricalActivityChart points={prediction.points} unit={prediction.unit} displayDivisor={1000} displayUnit="thousand NOAA-20-equivalent hotspots per month" aoi={predictionAOI} isSelectedAOI={selectedAOI !== null} />}
         {dailyForecast && <DailyForecastDonut summaries={dailyForecast.region} source={dailyForecast.source} />}
         {(!prediction || !dailyForecast) && !error && <p className="text-sm text-slate-500" role="status">Loading prediction data…</p>}
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
       </section>
-      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(15rem,0.8fr)]">
-        <div className="grid w-full items-start gap-4 self-start md:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
-          {prediction ? <PredictionInsightsCard insights={prediction.insights} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Key Insights</h2><p className="mt-3 text-sm text-slate-500">Loading insight data…</p></div>}
-          <div className="self-start">
-            {prediction ? <ModelConfidenceCard confidence={prediction.modelConfidence} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">Monthly Outlook Evaluation</h2><p className="mt-3 text-sm text-slate-500">Loading evaluation data…</p></div>}
-          </div>
-        </div>
-        <div className="self-start">
-          {prediction ? <PredictionAboutCard isMock={prediction.isMock} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Loading forecast information…</p></div>}
-        </div>
+      <section className="w-full">
+        {prediction ? <PredictionAboutCard isMock={prediction.isMock} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm"><h2 className="font-semibold">About Forecast Results</h2><p className="mt-3 text-sm text-slate-500">Loading forecast information…</p></div>}
       </section>
     </main>
   )
