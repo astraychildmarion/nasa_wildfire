@@ -8,6 +8,7 @@ import type { AOIDimensions } from './features/fire-map/aoi'
 import { DateRangeControls } from './features/filters/DateRangeControls'
 import { AddFireFieldNote } from './features/fire-annotations/AddFireFieldNote'
 import { MockFireAnnotationRepository } from './features/fire-annotations/MockFireAnnotationRepository'
+import { MOCK_MAP_FIELD_NOTES } from './features/fire-annotations/mockMapFieldNotes'
 import { PredictionTrendChart } from './features/prediction/PredictionTrendChart'
 import { PredictionRiskDonut } from './features/prediction/PredictionRiskDonut'
 import { ModelConfidenceCard } from './features/prediction/ModelConfidenceCard'
@@ -142,6 +143,7 @@ function HistoricalExplorerPage() {
           <FireMap
             aoi={selectedAOI}
             hotspots={hotspots}
+            fieldNotes={MOCK_MAP_FIELD_NOTES}
             loading={activityLoading || hotspotLoading}
             error={activityError ?? hotspotError}
             aoiDimensions={AOI_DIMENSIONS}
